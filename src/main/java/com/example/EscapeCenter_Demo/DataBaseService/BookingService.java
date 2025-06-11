@@ -1,20 +1,19 @@
-package com.example.EscapeCenter_Demo;
+package com.example.EscapeCenter_Demo.DataBaseService;
+
+import com.example.EscapeCenter_Demo.Booking;
 
 import java.sql.*;
 import java.util.HashMap;
 import java.util.Map;
 
-public class BookingService {
-    private static final String JDBC_URL = "jdbc:mysql://localhost:3306/escapecenter";
-    private static final String DB_USER = "root";
-    private static final String DB_PASS = "1234";
+public class BookingService extends DefaultService {
 
     public static void addBooking(Booking booking) {
         String insertClientSQL = "INSERT IGNORE INTO clients (firstName, lastName, phoneNumber, email) VALUES (?, ?, ?, ?)";
         String insertBookingSQL = "INSERT INTO bookings (BookingID, firstName, lastName, phoneNumber, email, experience, notes, participants) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS)) {
-            conn.setAutoCommit(false); // Start transaction
+            conn.setAutoCommit(false);
 
             try (PreparedStatement clientStmt = conn.prepareStatement(insertClientSQL);
                  PreparedStatement bookingStmt = conn.prepareStatement(insertBookingSQL)) {
@@ -37,9 +36,9 @@ public class BookingService {
                 bookingStmt.setInt(8, booking.getParticipants());
                 bookingStmt.executeUpdate();
 
-                conn.commit(); // Commit both
+                conn.commit();
             } catch (SQLException ex) {
-                conn.rollback(); // Rollback if error
+                conn.rollback();
                 ex.printStackTrace();
             }
 
@@ -80,13 +79,12 @@ public class BookingService {
     public static Map<String, Booking> getAllBookings() {
         Map<String, Booking> allBookings = new HashMap<>();
 
-        // Example with JDBC
         try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery("SELECT * FROM bookings")) {
 
             while (rs.next()) {
-                String key = rs.getString("BookingID"); // Make sure this column exists
+                String key = rs.getString("BookingID");
                 Booking booking = new Booking(
                         key,
                         rs.getString("firstName"),

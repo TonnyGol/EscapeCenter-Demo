@@ -1,18 +1,26 @@
 package com.example.EscapeCenter_Demo;
 
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
+import com.example.EscapeCenter_Demo.DataBaseService.BookingService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-
+@CrossOrigin(origins = "http://localhost:5173")
 @RestController
 public class WebController {
     private final AtomicLong counter = new AtomicLong();
 
-    @GetMapping("/")
-    public String index() {
-        return "Greetings from Spring Boot!";
+    @PostMapping("/booking")
+    public ResponseEntity<String> createBooking(@RequestBody Booking booking) {
+        BookingService.addBooking(booking);
+        return ResponseEntity.ok("Booking saved!");
+    }
+
+    @GetMapping("/booking")
+    public ResponseEntity<Map<String, Booking>> getAllBookings() {
+        return ResponseEntity.ok(BookingService.getAllBookings());
     }
 
 }

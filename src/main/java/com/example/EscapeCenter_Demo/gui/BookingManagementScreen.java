@@ -1,7 +1,7 @@
 package com.example.EscapeCenter_Demo.gui;
 
 import com.example.EscapeCenter_Demo.Booking;
-import com.example.EscapeCenter_Demo.BookingService;
+import com.example.EscapeCenter_Demo.DataBaseService.BookingService;
 import javafx.geometry.*;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -48,7 +48,7 @@ public class BookingManagementScreen {
         //LocalDate weekStart = today.with(DayOfWeek.SUNDAY);
         LocalDate weekStart = today.with(DayOfWeek.SUNDAY).minusWeeks(1);
 
-        bookings.putAll(BookingService.getAllBookings()); // Load existing bookings into the map
+        bookings.putAll(BookingService.getAllBookings());
 
         for (int i = 0; i < 7; i++) {
             LocalDate date = weekStart.plusDays(i);
@@ -172,6 +172,7 @@ public class BookingManagementScreen {
                     BookingService.deleteBooking(existing.getBookingID());
                     bookings.remove(key);
                 }
+                slotBtn.setText(timeRange);
                 slotBtn.setStyle("-fx-background-color: #d1fae5; -fx-text-fill: #065f46;");
             }
             return button;
