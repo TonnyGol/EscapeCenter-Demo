@@ -1,6 +1,6 @@
 package com.example.EscapeCenter_Demo.gui;
 
-import com.example.EscapeCenter_Demo.WorkersService;
+import com.example.EscapeCenter_Demo.DataBaseService.WorkersService;
 import javafx.geometry.*;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
