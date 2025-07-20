@@ -30,7 +30,7 @@ public class DashboardScreen {
         vbox.setPadding(new Insets(30));
         vbox.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT); // RTL for Hebrew
 
-        clientBtn.setOnAction(e -> showAlert("ניהול לקוחות - טרם מומש"));
+        clientBtn.setOnAction(e -> new ClientsManagementScreen().start(new Stage()));
         bookingBtn.setOnAction(e -> new BookingManagementScreen().start(new Stage()));
         reportsBtn.setOnAction(e -> showAlert("דו\"חות - טרם מומש"));
         logoutBtn.setOnAction(e -> {
