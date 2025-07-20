@@ -1,7 +1,12 @@
 package com.example.EscapeCenter_Demo.DataBaseService;
 
 public abstract class DefaultService {
-    public static final String JDBC_URL = "jdbc:mysql://localhost:3306/escapecenter";
-    public static final String DB_USER = "REMOVED";
-    public static final String DB_PASS = "***REMOVED***";
+    static String[] JdbcUrls = {
+            "jdbc:mysql://localhost:3306/escapecenter",
+            "jdbc:mysql://REMOVED"};
+    static String[] JdbcUsers = {"root", "sql7790226"};
+    static String[] JdbcPasswords = {"1234", "******"};
+    public static final String JDBC_URL = JdbcUrls[0];
+    public static final String DB_USER = JdbcUsers[0];
+    public static final String DB_PASS = JdbcPasswords[0];
 }
