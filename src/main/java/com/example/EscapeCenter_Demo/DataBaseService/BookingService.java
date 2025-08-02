@@ -10,7 +10,8 @@ public class BookingService extends DefaultService {
 
     public static void addBooking(Booking booking) {
         String insertClientSQL = "INSERT IGNORE INTO clients (firstName, lastName, phoneNumber, email) VALUES (?, ?, ?, ?)";
-        String insertBookingSQL = "INSERT INTO bookings (BookingID, firstName, lastName, phoneNumber, email, experience, notes, participants) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String insertBookingSQL = "INSERT INTO bookings (BookingID, room, firstName, lastName," +
+                "phoneNumber, email, experience, notes, participants, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS)) {
             conn.setAutoCommit(false);
@@ -27,13 +28,15 @@ public class BookingService extends DefaultService {
 
                 // Insert booking
                 bookingStmt.setString(1, booking.getBookingID());
-                bookingStmt.setString(2, booking.getFirstName());
-                bookingStmt.setString(3, booking.getLastName());
-                bookingStmt.setString(4, booking.getPhoneNumber());
-                bookingStmt.setString(5, booking.getEmail());
-                bookingStmt.setString(6, booking.getExperience());
-                bookingStmt.setString(7, booking.getNotes());
-                bookingStmt.setInt(8, booking.getParticipants());
+                bookingStmt.setString(2, booking.getRoom());
+                bookingStmt.setString(3, booking.getFirstName());
+                bookingStmt.setString(4, booking.getLastName());
+                bookingStmt.setString(5, booking.getPhoneNumber());
+                bookingStmt.setString(6, booking.getEmail());
+                bookingStmt.setString(7, booking.getExperience());
+                bookingStmt.setString(8, booking.getNotes());
+                bookingStmt.setInt(9, booking.getParticipants());
+                bookingStmt.setString(10, booking.getColor());
                 bookingStmt.executeUpdate();
 
                 conn.commit();
@@ -49,7 +52,7 @@ public class BookingService extends DefaultService {
 
 
     public static void updateBooking(Booking booking) {
-        String sql = "UPDATE bookings SET firstName=?, lastName=?, email=?, experience=?, notes=?, participants=? WHERE BookingID=?";
+        String sql = "UPDATE bookings SET firstName=?, lastName=?, email=?, experience=?, notes=?, participants=?, color=? WHERE BookingID=? AND room=?";
         try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, booking.getFirstName());
@@ -58,18 +61,21 @@ public class BookingService extends DefaultService {
             stmt.setString(4, booking.getExperience());
             stmt.setString(5, booking.getNotes());
             stmt.setInt(6, booking.getParticipants());
-            stmt.setString(7, booking.getBookingID());
+            stmt.setString(7, booking.getColor());
+            stmt.setString(8, booking.getBookingID());
+            stmt.setString(9, booking.getRoom());
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    public static void deleteBooking(String bookingID) {
-        String sql = "DELETE FROM bookings WHERE BookingID=?";
+    public static void deleteBooking(String bookingID, String room) {
+        String sql = "DELETE FROM bookings WHERE BookingID=? AND room=?";
         try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, bookingID);
+            stmt.setString(2, room);
             stmt.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
@@ -87,15 +93,17 @@ public class BookingService extends DefaultService {
                 String key = rs.getString("BookingID");
                 Booking booking = new Booking(
                         key,
+                        rs.getString("room"),
                         rs.getString("firstName"),
                         rs.getString("lastName"),
                         rs.getString("phoneNumber"),
                         rs.getString("email"),
                         rs.getString("experience"),
                         rs.getString("notes"),
-                        rs.getInt("participants")
+                        rs.getInt("participants"),
+                        rs.getString("color")
                 );
-                allBookings.put(key, booking);
+                allBookings.put(key+"/"+booking.getRoom(), booking);
             }
         } catch (SQLException e) {
             e.printStackTrace();
