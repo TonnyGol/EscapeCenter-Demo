@@ -2,6 +2,8 @@ package com.example.EscapeCenter_Demo.gui;
 
 import com.example.EscapeCenter_Demo.Booking;
 import com.example.EscapeCenter_Demo.DataBaseService.BookingService;
+import jakarta.mail.MessagingException;
+import javafx.event.ActionEvent;
 import javafx.geometry.*;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -11,14 +13,12 @@ import javafx.stage.Stage;
 
 import java.time.*;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class BookingManagementScreen {
 
     private final Map<String, Booking> bookings = new HashMap<>();
     private final Map<String, Button> slotButtons = new HashMap<>();
-    private final DateTimeFormatter dayFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private final DateTimeFormatter timeFormat = DateTimeFormatter.ofPattern("HH:mm");
     private static final Map<DayOfWeek, String> hebrewDays = Map.of(
             DayOfWeek.SUNDAY, "ראשון",
@@ -29,7 +29,6 @@ public class BookingManagementScreen {
             DayOfWeek.FRIDAY, "שישי",
             DayOfWeek.SATURDAY, "שבת"
     );
-
 
     private final int appointmentDuration = 90;
     private final int breakDuration = 30;
@@ -42,59 +41,74 @@ public class BookingManagementScreen {
         HBox weekView = new HBox(10);
         weekView.setPadding(new Insets(20));
         weekView.setAlignment(Pos.TOP_CENTER);
+        weekView.setSpacing(30);
         weekView.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
         LocalDate today = LocalDate.now();
-        //LocalDate weekStart = today.with(DayOfWeek.SUNDAY);
         LocalDate weekStart = today.with(DayOfWeek.SUNDAY).minusWeeks(1);
 
         bookings.putAll(BookingService.getAllBookings());
 
+        String[] rooms = {"אחוזת השכן", "מקדש הקאמי", "ההתערבות", "אינפיניטי", "נרקוס"};
+
         for (int i = 0; i < 7; i++) {
             LocalDate date = weekStart.plusDays(i);
+
             VBox dayColumn = new VBox(10);
             dayColumn.setAlignment(Pos.TOP_CENTER);
             dayColumn.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
             Label dayLabel = new Label(hebrewDays.get(date.getDayOfWeek()) + "\n" + date.format(DateTimeFormatter.ofPattern("dd/MM")));
-            dayLabel.setStyle("-fx-font-weight: bold;");
+            dayLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 15;");
             dayColumn.getChildren().add(dayLabel);
 
-            for (int j = 0; j < appointmentsPerDay; j++) {
-                LocalTime start = startTime.plusMinutes(j * (appointmentDuration + breakDuration));
-                LocalTime end = start.plusMinutes(appointmentDuration);
-                String timeRange = start.format(timeFormat) + "-" + end.format(timeFormat);
-                String key = date.format(DateTimeFormatter.ofPattern("dd.MM")) + "/" + timeRange;
+            for (String room : rooms) {
+                VBox roomBox = new VBox(5);
+                roomBox.setAlignment(Pos.TOP_CENTER);
 
-                Button slotBtn = new Button(timeRange);
-                slotBtn.setMinWidth(120);
+                Label roomLabel = new Label(room);
+                roomLabel.setStyle("-fx-underline: true; -fx-font-weight: bold; -fx-font-size: 15;");
+                roomBox.getChildren().add(roomLabel);
 
-                Booking existingBooking = bookings.get(key);
-                if (existingBooking != null) {
-                    slotBtn.setText(timeRange + "\n" + existingBooking.getFirstName() + " " + existingBooking.getLastName());
-                    slotBtn.setStyle("-fx-background-color: #fecaca; -fx-text-fill: #991b1b;");
-                } else {
-                    slotBtn.setStyle("-fx-background-color: #d1fae5; -fx-text-fill: #065f46;");
+                for (int j = 0; j < appointmentsPerDay; j++) {
+                    LocalTime start = startTime.plusMinutes(j * (appointmentDuration + breakDuration));
+                    LocalTime end = start.plusMinutes(appointmentDuration);
+                    String timeRange = start.format(timeFormat) + "-" + end.format(timeFormat);
+
+                    String key = date.format(DateTimeFormatter.ofPattern("dd.MM")) + "/" + timeRange;
+                    Button slotBtn = new Button(timeRange);
+                    slotBtn.setMinWidth(110);
+
+                    Booking existingBooking = bookings.get(key+"/"+room);
+                    String bookingColor = "#fecaca";
+
+                    if (existingBooking != null) {
+                        slotBtn.setText(timeRange + "\n" + existingBooking.getFirstName() + " " + existingBooking.getLastName());
+                        bookingColor = existingBooking.getColor();
+                        slotBtn.setStyle("-fx-background-color: " + bookingColor + "; -fx-text-fill: #000000; -fx-font-size: 13;");
+                    } else {
+                        slotBtn.setStyle("-fx-background-color: #e0e7ff; -fx-text-fill: #000000; -fx-font-size: 13;");
+                    }
+
+                    String finalColor = bookingColor;
+                    slotBtn.setOnAction(e -> openBookingModal(stage, key, date, timeRange, slotBtn, room, finalColor));
+                    roomBox.getChildren().add(slotBtn);
+                    slotButtons.put(key, slotBtn);
                 }
-
-                slotBtn.setOnAction(e -> openBookingModal(stage, key, date, timeRange, slotBtn));
-                dayColumn.getChildren().add(slotBtn);
-
-                slotButtons.put(key, slotBtn);
+                dayColumn.getChildren().add(roomBox);
             }
-
             weekView.getChildren().add(dayColumn);
         }
 
         ScrollPane scrollPane = new ScrollPane(weekView);
         scrollPane.setFitToWidth(true);
 
-        stage.setScene(new Scene(scrollPane, 950, 600));
+        stage.setScene(new Scene(scrollPane, 1200, 700));
         stage.show();
     }
 
-    private void openBookingModal(Stage parent, String key, LocalDate date, String timeRange, Button slotBtn) {
-        Booking existing = bookings.get(key);
+    private void openBookingModal(Stage parent, String key, LocalDate date, String timeRange, Button slotBtn, String roomName, String currentColor) {
+        Booking existing = bookings.get(key+"/"+roomName);
 
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.initOwner(parent);
@@ -138,46 +152,156 @@ public class BookingManagementScreen {
         grid.add(new Label("הערות:"), 0, 6); grid.add(notesArea, 1, 6);
 
         dialog.getDialogPane().setContent(grid);
+        ButtonType colorBtn = new ButtonType("שנה צבע", ButtonBar.ButtonData.HELP_2);
+        dialog.getDialogPane().getButtonTypes().addAll(
+                colorBtn,
+                new ButtonType("שמור", ButtonBar.ButtonData.OK_DONE),
+                new ButtonType("בטל הזמנה", ButtonBar.ButtonData.OTHER),
+                new ButtonType("סגור", ButtonBar.ButtonData.CANCEL_CLOSE)
+        );
 
-        if (existing == null) {
-            dialog.getDialogPane().getButtonTypes().addAll(new ButtonType("אישור", ButtonBar.ButtonData.OK_DONE), new ButtonType("ביטול", ButtonBar.ButtonData.CANCEL_CLOSE));
-        } else {
-            ButtonType editButton = new ButtonType("ערוך", ButtonBar.ButtonData.OK_DONE);
-            ButtonType cancelBookingButton = new ButtonType("בטל הזמנה", ButtonBar.ButtonData.OTHER);
-            dialog.getDialogPane().getButtonTypes().addAll(new ButtonType("סגור", ButtonBar.ButtonData.CANCEL_CLOSE), editButton, cancelBookingButton);
-        }
+        final String[] selectedColor = {currentColor};
+
+        Button changeColorNode = (Button) dialog.getDialogPane().lookupButton(colorBtn);
+        changeColorNode.addEventFilter(ActionEvent.ACTION, event -> {
+            // Prevent the dialog from closing
+            event.consume();
+
+            List<String> colorNames = Arrays.asList("אדום", "ירוק", "צהוב", "כחול", "כחלת");
+            List<String> bgColors = Arrays.asList("#fecaca", "#d1fae5", "#fef3c7", "#c7d2fe", "#e0e7ff");
+
+            ChoiceDialog<String> colorDialog = new ChoiceDialog<>("", colorNames);
+            colorDialog.setTitle("בחר צבע חדש");
+            colorDialog.setHeaderText("בחר צבע להזמנה");
+
+            colorDialog.showAndWait().ifPresent(name -> {
+                int idx = colorNames.indexOf(name);
+                if (idx >= 0) {
+                    selectedColor[0] = bgColors.get(idx);
+                    slotBtn.setStyle("-fx-background-color: " + selectedColor[0] + "; -fx-text-fill: #000000;");
+                }
+            });
+        });
 
         dialog.setResultConverter(button -> {
+
             if (button.getButtonData() == ButtonBar.ButtonData.OK_DONE) {
                 Booking booking = new Booking(
-                        key,
-                        nameField.getText(),
-                        lastNameField.getText(),
-                        phoneField.getText(),
-                        emailField.getText(),
-                        experienceBox.getValue(),
-                        notesArea.getText(),
-                        participantsBox.getValue()
+                        key, roomName,
+                        nameField.getText(), lastNameField.getText(),
+                        phoneField.getText(), emailField.getText(),
+                        experienceBox.getValue(), notesArea.getText(),
+                        participantsBox.getValue(), selectedColor[0]
                 );
-                bookings.put(key, booking);
+                bookings.put(key+"/"+roomName, booking);
+
                 if (existing == null) {
                     BookingService.addBooking(booking);
+                    sendBookMail(booking, date, timeRange);
                 } else {
                     BookingService.updateBooking(booking);
                 }
+
                 slotBtn.setText(timeRange + "\n" + booking.getFirstName() + " " + booking.getLastName());
-                slotBtn.setStyle("-fx-background-color: #fecaca; -fx-text-fill: #991b1b;");
-            } else if (button.getButtonData() == ButtonBar.ButtonData.OTHER) {
-                if (existing != null) {
-                    BookingService.deleteBooking(existing.getBookingID());
-                    bookings.remove(key);
-                }
-                slotBtn.setText(timeRange);
-                slotBtn.setStyle("-fx-background-color: #d1fae5; -fx-text-fill: #065f46;");
+                slotBtn.setStyle("-fx-background-color: " + selectedColor[0] + "; -fx-text-fill: #000000;");
             }
+
+            if (button.getButtonData() == ButtonBar.ButtonData.OTHER && existing != null) {
+                BookingService.deleteBooking(existing.getBookingID(), existing.getRoom());
+                bookings.remove(key+"/"+roomName);
+                sendCancelBookMail(existing, date, timeRange);
+
+                slotBtn.setText(timeRange);
+                slotBtn.setStyle("-fx-background-color: #e0e7ff; -fx-text-fill: #000000;");
+            }
+
             return button;
         });
 
         dialog.showAndWait();
+    }
+
+    private void sendBookMail(Booking booking, LocalDate date, String timeRange) {
+        try {
+            String message = String.format("""
+                        שלום %s %s,
+
+                        ההזמנה שלך התקבלה בהצלחה!
+
+                        פרטי ההזמנה:
+                        ---------------------------
+                        חדר: %s
+                        תאריך: %s
+                        שעה: %s
+                        מספר משתתפים: %d
+                        ניסיון קודם: %s
+                        טלפון: %s
+                        אימייל: %s
+                        הערות: %s
+
+                        מצפים לראותך,
+                        צוות Escape Center
+                        """,
+                    booking.getFirstName(), booking.getLastName(),
+                    booking.getRoom(),
+                    date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy")),
+                    timeRange,
+                    booking.getParticipants(),
+                    booking.getExperience(),
+                    booking.getPhoneNumber(),
+                    booking.getEmail(),
+                    booking.getNotes().isEmpty() ? "אין" : booking.getNotes()
+            );
+
+            EmailService.sendEmail(
+                    booking.getEmail(),
+                    booking.getFirstName() + " " + booking.getLastName() + " - אישור הזמנה Escape Center",
+                    message
+            );
+        } catch (MessagingException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendCancelBookMail(Booking existing, LocalDate date, String timeRange) {
+        try {
+            String message = String.format("""
+                        שלום %s %s,
+
+                        ההזמנה שלך בוטלה בהצלחה.
+
+                        פרטי ההזמנה שבוטלה:
+                        ---------------------------
+                        חדר: %s
+                        תאריך: %s
+                        שעה: %s
+                        מספר משתתפים: %d
+                        ניסיון קודם: %s
+                        טלפון: %s
+                        אימייל: %s
+                        הערות: %s
+
+                        נשמח לראותך בפעם הבאה!
+                        צוות Escape Center
+                        """,
+                    existing.getFirstName(), existing.getLastName(),
+                    existing.getRoom(),
+                    date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy")),
+                    timeRange,
+                    existing.getParticipants(),
+                    existing.getExperience(),
+                    existing.getPhoneNumber(),
+                    existing.getEmail(),
+                    existing.getNotes().isEmpty() ? "אין" : existing.getNotes()
+            );
+
+            EmailService.sendEmail(
+                    existing.getEmail(),
+                    existing.getFirstName() + " " + existing.getLastName() + " - ביטול הזמנה Escape Center",
+                    message
+            );
+        } catch (MessagingException e) {
+            e.printStackTrace();
+        }
     }
 }
