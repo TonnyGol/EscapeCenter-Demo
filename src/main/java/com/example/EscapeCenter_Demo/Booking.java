@@ -1,9 +1,9 @@
 package com.example.EscapeCenter_Demo;
 
 public class Booking {
-    private String bookingID, room;
-    private String firstName, lastName, phoneNumber, email, experience, notes, color;
-    private int participants;
+    private final String bookingID, room;
+    private final String firstName, lastName, phoneNumber, email, experience, notes, color;
+    private final int participants;
 
     public Booking(String bookingID, String room, String firstName, String lastName, String phoneNumber, String email,
                    String experience, String notes, int participants, String color) {

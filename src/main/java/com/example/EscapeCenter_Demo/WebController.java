@@ -4,6 +4,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
 import com.example.EscapeCenter_Demo.DataBaseService.BookingService;
+import com.example.EscapeCenter_Demo.gui.EmailService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +16,9 @@ public class WebController {
     @PostMapping("/booking")
     public ResponseEntity<String> createBooking(@RequestBody Booking booking) {
         BookingService.addBooking(booking);
+        EmailService.sendBookMail(booking,
+                booking.getBookingID().split("/")[0],
+                booking.getBookingID().split("/")[1]);
         return ResponseEntity.ok("Booking saved!");
     }
 

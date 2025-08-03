@@ -197,7 +197,8 @@ public class BookingManagementScreen {
 
                 if (existing == null) {
                     BookingService.addBooking(booking);
-                    sendBookMail(booking, date, timeRange);
+                    EmailService.sendBookMail(booking,
+                            date.format(DateTimeFormatter.ofPattern("dd-MM")), timeRange);
                 } else {
                     BookingService.updateBooking(booking);
                 }
@@ -209,7 +210,8 @@ public class BookingManagementScreen {
             if (button.getButtonData() == ButtonBar.ButtonData.OTHER && existing != null) {
                 BookingService.deleteBooking(existing.getBookingID(), existing.getRoom());
                 bookings.remove(key+"/"+roomName);
-                sendCancelBookMail(existing, date, timeRange);
+                sendCancelBookMail(existing,
+                        date.format(DateTimeFormatter.ofPattern("dd-MM")), timeRange);
 
                 slotBtn.setText(timeRange);
                 slotBtn.setStyle("-fx-background-color: #e0e7ff; -fx-text-fill: #000000;");
@@ -221,49 +223,7 @@ public class BookingManagementScreen {
         dialog.showAndWait();
     }
 
-    private void sendBookMail(Booking booking, LocalDate date, String timeRange) {
-        try {
-            String message = String.format("""
-                        שלום %s %s,
-
-                        ההזמנה שלך התקבלה בהצלחה!
-
-                        פרטי ההזמנה:
-                        ---------------------------
-                        חדר: %s
-                        תאריך: %s
-                        שעה: %s
-                        מספר משתתפים: %d
-                        ניסיון קודם: %s
-                        טלפון: %s
-                        אימייל: %s
-                        הערות: %s
-
-                        מצפים לראותך,
-                        צוות Escape Center
-                        """,
-                    booking.getFirstName(), booking.getLastName(),
-                    booking.getRoom(),
-                    date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy")),
-                    timeRange,
-                    booking.getParticipants(),
-                    booking.getExperience(),
-                    booking.getPhoneNumber(),
-                    booking.getEmail(),
-                    booking.getNotes().isEmpty() ? "אין" : booking.getNotes()
-            );
-
-            EmailService.sendEmail(
-                    booking.getEmail(),
-                    booking.getFirstName() + " " + booking.getLastName() + " - אישור הזמנה Escape Center",
-                    message
-            );
-        } catch (MessagingException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void sendCancelBookMail(Booking existing, LocalDate date, String timeRange) {
+    private void sendCancelBookMail(Booking existing, String date, String timeRange) {
         try {
             String message = String.format("""
                         שלום %s %s,
@@ -286,7 +246,7 @@ public class BookingManagementScreen {
                         """,
                     existing.getFirstName(), existing.getLastName(),
                     existing.getRoom(),
-                    date.format(DateTimeFormatter.ofPattern("dd-MM-yyyy")),
+                    date,
                     timeRange,
                     existing.getParticipants(),
                     existing.getExperience(),
