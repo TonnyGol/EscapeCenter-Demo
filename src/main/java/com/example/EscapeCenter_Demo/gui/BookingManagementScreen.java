@@ -1,7 +1,8 @@
 package com.example.EscapeCenter_Demo.gui;
 
 import com.example.EscapeCenter_Demo.Booking;
-import com.example.EscapeCenter_Demo.DataBaseService.BookingService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.mail.MessagingException;
 import javafx.event.ActionEvent;
 import javafx.geometry.*;
@@ -11,6 +12,10 @@ import javafx.scene.layout.*;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -33,9 +38,10 @@ public class BookingManagementScreen {
     private final int appointmentDuration = 90;
     private final int breakDuration = 30;
     private final int appointmentsPerDay = 7;
+    private String authCode = "";
     private final LocalTime startTime = LocalTime.of(10, 0);
 
-    public void start(Stage stage) {
+    public void start(Stage stage, HttpClient client, String encodedAuth) {
         stage.setTitle("ניהול הזמנות");
 
         HBox weekView = new HBox(10);
@@ -47,7 +53,9 @@ public class BookingManagementScreen {
         LocalDate today = LocalDate.now();
         LocalDate weekStart = today.with(DayOfWeek.SUNDAY).minusWeeks(1);
 
-        bookings.putAll(BookingService.getAllBookings());
+        authCode = encodedAuth;
+
+        loadAllBookings(client, bookings);
 
         String[] rooms = {"אחוזת השכן", "מקדש הקאמי", "ההתערבות", "אינפיניטי", "נרקוס"};
 
@@ -91,7 +99,10 @@ public class BookingManagementScreen {
                     }
 
                     String finalColor = bookingColor;
-                    slotBtn.setOnAction(e -> openBookingModal(stage, key, date, timeRange, slotBtn, room, finalColor));
+                    slotBtn.setOnAction(e -> openBookingModal(stage, key,
+                            date, timeRange,
+                            slotBtn, room,
+                            finalColor, client, authCode));
                     roomBox.getChildren().add(slotBtn);
                     slotButtons.put(key, slotBtn);
                 }
@@ -107,7 +118,10 @@ public class BookingManagementScreen {
         stage.show();
     }
 
-    private void openBookingModal(Stage parent, String key, LocalDate date, String timeRange, Button slotBtn, String roomName, String currentColor) {
+    private void openBookingModal(Stage parent, String key,
+                                  LocalDate date, String timeRange,
+                                  Button slotBtn, String roomName,
+                                  String currentColor, HttpClient client, String authCode) {
         Booking existing = bookings.get(key+"/"+roomName);
 
         Dialog<ButtonType> dialog = new Dialog<>();
@@ -196,11 +210,10 @@ public class BookingManagementScreen {
                 bookings.put(key+"/"+roomName, booking);
 
                 if (existing == null) {
-                    BookingService.addBooking(booking);
-                    EmailService.sendBookMail(booking,
-                            date.format(DateTimeFormatter.ofPattern("dd-MM")), timeRange);
+                    addBook(client, booking, authCode);
+                    //EmailService.sendBookMail(booking, date.format(DateTimeFormatter.ofPattern("dd-MM")), timeRange);
                 } else {
-                    BookingService.updateBooking(booking);
+                    updateBook(client, booking, authCode);
                 }
 
                 slotBtn.setText(timeRange + "\n" + booking.getFirstName() + " " + booking.getLastName());
@@ -208,10 +221,9 @@ public class BookingManagementScreen {
             }
 
             if (button.getButtonData() == ButtonBar.ButtonData.OTHER && existing != null) {
-                BookingService.deleteBooking(existing.getBookingID(), existing.getRoom());
+                deleteBook(client, existing.getBookingID(), existing.getRoom(), authCode);
                 bookings.remove(key+"/"+roomName);
-                sendCancelBookMail(existing,
-                        date.format(DateTimeFormatter.ofPattern("dd-MM")), timeRange);
+                //sendCancelBookMail(existing, date.format(DateTimeFormatter.ofPattern("dd-MM")), timeRange);
 
                 slotBtn.setText(timeRange);
                 slotBtn.setStyle("-fx-background-color: #e0e7ff; -fx-text-fill: #000000;");
@@ -263,5 +275,127 @@ public class BookingManagementScreen {
         } catch (MessagingException e) {
             e.printStackTrace();
         }
+    }
+
+    private void loadAllBookings(HttpClient client, Map<String, Booking> bookings){
+        try{
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:8080/bookings"))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                String json = response.body();
+
+                ObjectMapper mapper = new ObjectMapper();
+                mapper.findAndRegisterModules(); // If you have LocalDate etc.
+
+                Map<String, Booking> serverBookings =
+                        mapper.readValue(json, new TypeReference<>() {});
+
+                // ✔ Insert into your existing bookings map
+                bookings.clear();              // Remove old values if needed
+                bookings.putAll(serverBookings);
+
+                System.out.println("Loaded " + bookings.size() + " bookings from server.");
+
+            } else {
+                System.out.println("Server returned status code: " + response.statusCode());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void addBook(HttpClient client, Booking booking, String authCode){
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.findAndRegisterModules();
+
+            String json = mapper.writeValueAsString(booking);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:8080/addBooking"))
+                    .header("Authorization", "Basic " + authCode)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> response =
+                    client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                System.out.println("Booking saved successfully!");
+            } else {
+                System.out.println("Failed to save booking. Status: " + response.statusCode());
+                System.out.println("Server message: " + response.body());
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void updateBook(HttpClient client, Booking booking, String authCode){
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.findAndRegisterModules();
+
+            String json = mapper.writeValueAsString(booking);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:8080/server/updateBooking"))
+                    .header("Authorization", "Basic " + authCode)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            HttpResponse<String> response =
+                    client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                System.out.println("Booking updated successfully!");
+            } else {
+                System.out.println("Failed to save booking. Status: " + response.statusCode());
+                System.out.println("Server message: " + response.body());
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void deleteBook(HttpClient client,
+                            String bookingID, String roomName, String authCode){
+
+        try{
+            String json = String.format("{\"bookingID\":\"%s\",\"roomName\":\"%s\"}",
+                    bookingID, roomName);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:8080/server/deleteBooking"))
+                    .header("Authorization", "Basic " + authCode)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+
+            // Send request
+            HttpResponse<String> response =
+                    client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                System.out.println("Booking deleted successfully!");
+            } else {
+                System.out.println("Failed to delete booking. Status: " + response.statusCode());
+                System.out.println("Server message: " + response.body());
+            }
+
+
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+
     }
 }

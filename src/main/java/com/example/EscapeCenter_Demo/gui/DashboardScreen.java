@@ -8,8 +8,10 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
 
+import java.net.http.HttpClient;
+
 public class DashboardScreen {
-    public void start(Stage stage, String username) {
+    public void start(Stage stage, String username, HttpClient client, String encodedAuth) {
         stage.setTitle("Escape Center - לוח בקרה");
 
         Label welcomeLabel = new Label("ברוך הבא, " + username);
@@ -30,8 +32,10 @@ public class DashboardScreen {
         vbox.setPadding(new Insets(30));
         vbox.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT); // RTL for Hebrew
 
-        clientBtn.setOnAction(e -> new ClientsManagementScreen().start(new Stage()));
-        bookingBtn.setOnAction(e -> new BookingManagementScreen().start(new Stage()));
+        clientBtn.setOnAction(e -> new ClientsManagementScreen().start(new Stage(),
+                client, encodedAuth));
+        bookingBtn.setOnAction(e -> new BookingManagementScreen().start(new Stage(),
+                client, encodedAuth));
         reportsBtn.setOnAction(e -> showAlert("דו\"חות - טרם מומש"));
         logoutBtn.setOnAction(e -> {
             stage.close();

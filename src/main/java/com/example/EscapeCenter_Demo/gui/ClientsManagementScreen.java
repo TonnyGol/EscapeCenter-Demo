@@ -1,9 +1,9 @@
 package com.example.EscapeCenter_Demo.gui;
 
 import com.example.EscapeCenter_Demo.Client;
-import com.example.EscapeCenter_Demo.DataBaseService.ClientsService;
-import com.example.EscapeCenter_Demo.DataBaseService.BookingService;
 import com.example.EscapeCenter_Demo.Booking;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -12,13 +12,18 @@ import javafx.scene.layout.*;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class ClientsManagementScreen {
 
     private List<Client> clients;
-    private Map<String, Booking> bookings;
+    private Map<String, Client> clientMap = new HashMap<>();
+    private Map<String, Booking> bookings = new HashMap<>();
     private VBox cardDisplay;
     private Button pageBtn;
     private TextField searchField;
@@ -26,11 +31,12 @@ public class ClientsManagementScreen {
     private int clientsPerPage = 10;
     private int currentPage = 0;
 
-    public void start(Stage stage) {
+    public void start(Stage stage, HttpClient httpClient, String encodedAuth) {
         stage.setTitle("ניהול לקוחות");
 
-        bookings = BookingService.getAllBookings();
-        clients = new ArrayList<>(ClientsService.getAllClients().values());
+        loadAllBookings(httpClient, bookings);
+        loadAllClients(httpClient, clientMap, encodedAuth);
+        clients = new ArrayList<>(clientMap.values());
 
         BorderPane mainLayout = new BorderPane();
 
@@ -106,7 +112,7 @@ public class ClientsManagementScreen {
     private void filterClients() {
         String keyword = searchField.getText().toLowerCase();
 
-        clients = ClientsService.getAllClients().values().stream()
+        clients = clientMap.values().stream()
                 .filter(client ->
                         (client.getFirstName() + " " + client.getLastName()).toLowerCase().contains(keyword) ||
                                 client.getPhoneNumber().toLowerCase().contains(keyword)
@@ -161,5 +167,71 @@ public class ClientsManagementScreen {
         }
 
         return card;
+    }
+
+    private void loadAllBookings(HttpClient client, Map<String, Booking> bookings){
+        try{
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:8080/bookings"))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                String json = response.body();
+
+                ObjectMapper mapper = new ObjectMapper();
+                mapper.findAndRegisterModules();
+
+                Map<String, Booking> serverBookings =
+                        mapper.readValue(json, new TypeReference<>() {});
+
+
+                bookings.clear();
+                bookings.putAll(serverBookings);
+
+            } else {
+                System.out.println("Server returned status code: " + response.statusCode());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void loadAllClients(HttpClient client, Map<String,
+            Client> clientMap, String encodedAuth){
+        try{
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:8080/server/clients"))
+                    .header("Authorization", "Basic " + encodedAuth)
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response =
+                    client.send(request, HttpResponse.BodyHandlers.ofString());
+
+
+            if (response.statusCode() == 200) {
+                String json = response.body();
+
+                ObjectMapper mapper = new ObjectMapper();
+                mapper.findAndRegisterModules();
+
+                Map<String, Client> serverBookings =
+                        mapper.readValue(json, new TypeReference<>() {});
+
+
+                clientMap.clear();
+                clientMap.putAll(serverBookings);
+
+                System.out.println("Loaded " + clientMap.size() + " clients from server.");
+
+            } else {
+                System.out.println("Server returned status code: " + response.statusCode());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
