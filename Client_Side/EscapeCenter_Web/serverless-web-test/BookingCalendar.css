@@ -1,0 +1,126 @@
+.calendar-container {
+    direction: rtl;
+    padding: 20px;
+}
+
+.demo-banner {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 18px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.week-view {
+    display: flex;
+    overflow-x: auto;
+}
+
+.day-column {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    border: 1px solid #ccc;
+}
+
+.day-label {
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.day-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    /* 5 rooms */
+    gap: 8px;
+}
+
+.room-header {
+    text-align: center;
+    font-weight: bold;
+    padding: 5px 0;
+    background-color: #222;
+    color: orange;
+    border-radius: 5px;
+}
+
+.slot-button {
+    height: 60px;
+    font-size: 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.slot-button:hover:not(:disabled) {
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slot-button.available {
+    background-color: #d1fae5;
+    color: #065f46;
+}
+
+.slot-button.booked {
+    background-color: #fecaca;
+    color: #991b1b;
+    cursor: not-allowed;
+}
+
+.booking-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 300px;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 20px;
+    border: 2px solid #ccc;
+    z-index: 1000;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+}
+
+.booking-modal input,
+.booking-modal select,
+.booking-modal textarea {
+    width: 100%;
+    margin: 5px 0;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.booking-modal button {
+    margin: 5px 5px 0 0;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.booking-modal button:first-of-type {
+    background-color: #10b981;
+    color: white;
+}
+
+.booking-modal button:last-of-type {
+    background-color: #ef4444;
+    color: white;
+}
+
+.error-message {
+    color: #dc2626;
+    font-size: 18px;
+    text-align: center;
+    padding: 40px;
+}
