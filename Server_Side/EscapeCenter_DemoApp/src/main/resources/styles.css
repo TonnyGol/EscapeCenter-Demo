@@ -1,0 +1,580 @@
+/* ================================================================
+   EscapeCenter — Premium Dark Theme
+   ================================================================ */
+
+/* ---- Global Root & Base ---- */
+.root {
+    -fx-base: #0f172a;
+    -fx-background: #0f172a;
+    -fx-control-inner-background: #1e293b;
+    -fx-accent: #7c3aed;
+    -fx-focus-color: #7c3aed;
+    -fx-faint-focus-color: transparent;
+    -fx-font-family: "Segoe UI", "Tahoma", "Arial", sans-serif;
+    -fx-font-size: 14px;
+    -fx-text-fill: #e2e8f0;
+}
+
+/* All labels default to light text */
+.label {
+    -fx-text-fill: #e2e8f0;
+}
+
+/* ---- Focus Indicators (Accessibility) ---- */
+.button:focused,
+.text-field:focused,
+.password-field:focused,
+.combo-box:focused,
+.text-area:focused {
+    -fx-border-color: #a78bfa;
+    -fx-border-width: 2;
+    -fx-border-radius: 6;
+    -fx-effect: dropshadow(gaussian, rgba(167, 139, 250, 0.4), 8, 0, 0, 0);
+}
+
+/* ---- ScrollPane ---- */
+.scroll-pane {
+    -fx-background-color: #0f172a;
+    -fx-background: #0f172a;
+}
+
+.scroll-pane>.viewport {
+    -fx-background-color: #0f172a;
+}
+
+/* ================================================================
+   LOGIN SCREEN
+   ================================================================ */
+.login-root {
+    -fx-background-color: linear-gradient(to bottom right, #0f172a, #1a1040);
+    -fx-alignment: center;
+}
+
+.login-card {
+    -fx-background-color: #1e293b;
+    -fx-background-radius: 16;
+    -fx-border-color: #334155;
+    -fx-border-radius: 16;
+    -fx-padding: 40 36 36 36;
+    -fx-spacing: 18;
+    -fx-alignment: center;
+    -fx-pref-width: 380;
+    -fx-effect: dropshadow(gaussian, rgba(124, 58, 237, 0.25), 24, 0, 0, 4);
+}
+
+.login-title {
+    -fx-font-size: 26px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f8fafc;
+}
+
+.login-subtitle {
+    -fx-font-size: 14px;
+    -fx-text-fill: #94a3b8;
+}
+
+.login-label {
+    -fx-min-width: 80;
+    -fx-text-fill: #cbd5e1;
+    -fx-font-size: 14px;
+}
+
+.login-field {
+    -fx-background-color: #0f172a;
+    -fx-border-color: #334155;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-text-fill: #f1f5f9;
+    -fx-prompt-text-fill: #64748b;
+    -fx-padding: 10 14;
+    -fx-pref-width: 240;
+}
+
+.login-field:focused {
+    -fx-border-color: #7c3aed;
+    -fx-border-width: 2;
+}
+
+.login-button {
+    -fx-background-color: linear-gradient(to right, #7c3aed, #6d28d9);
+    -fx-text-fill: white;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-padding: 10 0;
+    -fx-pref-width: 320;
+    -fx-background-radius: 8;
+    -fx-cursor: hand;
+}
+
+.login-button:hover {
+    -fx-background-color: linear-gradient(to right, #8b5cf6, #7c3aed);
+    -fx-effect: dropshadow(gaussian, rgba(139, 92, 246, 0.5), 12, 0, 0, 2);
+}
+
+.login-button:pressed {
+    -fx-background-color: #6d28d9;
+}
+
+.status-error {
+    -fx-text-fill: #f87171;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+}
+
+/* ================================================================
+   NAVIGATION SHELL — SIDEBAR
+   ================================================================ */
+.nav-shell {
+    -fx-background-color: #0f172a;
+}
+
+.sidebar {
+    -fx-background-color: #1e293b;
+    -fx-padding: 16 8;
+    -fx-spacing: 4;
+    -fx-pref-width: 200;
+    -fx-alignment: top-center;
+    -fx-border-color: #334155;
+    -fx-border-width: 0 0 0 1;
+}
+
+.sidebar-header {
+    -fx-padding: 12 8 20 8;
+    -fx-spacing: 4;
+    -fx-alignment: center;
+}
+
+.sidebar-app-name {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #a78bfa;
+}
+
+.sidebar-username {
+    -fx-font-size: 12px;
+    -fx-text-fill: #94a3b8;
+}
+
+.sidebar-separator {
+    -fx-background-color: #334155;
+    -fx-pref-height: 1;
+    -fx-max-height: 1;
+}
+
+.nav-button {
+    -fx-background-color: transparent;
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 14px;
+    -fx-padding: 10 16;
+    -fx-pref-width: 180;
+    -fx-background-radius: 8;
+    -fx-alignment: center-right;
+    -fx-cursor: hand;
+}
+
+.nav-button:hover {
+    -fx-background-color: #334155;
+    -fx-text-fill: #e2e8f0;
+}
+
+.nav-button-active {
+    -fx-background-color: rgba(124, 58, 237, 0.15);
+    -fx-text-fill: #a78bfa;
+    -fx-font-weight: bold;
+    -fx-border-color: #7c3aed;
+    -fx-border-width: 0 2 0 0;
+    -fx-border-radius: 8 0 0 8;
+}
+
+.nav-button-active:hover {
+    -fx-background-color: rgba(124, 58, 237, 0.25);
+}
+
+.nav-button-logout {
+    -fx-text-fill: #f87171;
+}
+
+.nav-button-logout:hover {
+    -fx-background-color: rgba(248, 113, 113, 0.1);
+    -fx-text-fill: #fca5a5;
+}
+
+.content-area {
+    -fx-background-color: #0f172a;
+    -fx-padding: 24;
+}
+
+/* ================================================================
+   DASHBOARD
+   ================================================================ */
+.dashboard-pane {
+    -fx-spacing: 24;
+    -fx-padding: 8;
+}
+
+.dashboard-welcome {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f8fafc;
+}
+
+.dashboard-sub {
+    -fx-font-size: 14px;
+    -fx-text-fill: #94a3b8;
+}
+
+.dashboard-grid {
+    -fx-hgap: 16;
+    -fx-vgap: 16;
+}
+
+.dashboard-card {
+    -fx-background-color: #1e293b;
+    -fx-background-radius: 14;
+    -fx-border-color: #334155;
+    -fx-border-radius: 14;
+    -fx-padding: 24;
+    -fx-spacing: 10;
+    -fx-pref-width: 260;
+    -fx-pref-height: 150;
+    -fx-cursor: hand;
+    -fx-alignment: center;
+}
+
+.dashboard-card:hover {
+    -fx-border-color: #7c3aed;
+    -fx-effect: dropshadow(gaussian, rgba(124, 58, 237, 0.2), 16, 0, 0, 4);
+    -fx-translate-y: -3;
+}
+
+.dashboard-card-icon {
+    -fx-font-size: 32px;
+}
+
+.dashboard-card-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f1f5f9;
+}
+
+.dashboard-card-desc {
+    -fx-font-size: 12px;
+    -fx-text-fill: #94a3b8;
+    -fx-wrap-text: true;
+    -fx-text-alignment: center;
+}
+
+/* ================================================================
+   BOOKING CALENDAR
+   ================================================================ */
+.booking-pane {
+    -fx-spacing: 16;
+}
+
+.booking-toolbar {
+    -fx-spacing: 12;
+    -fx-alignment: center;
+    -fx-padding: 0 0 8 0;
+}
+
+.week-nav-btn {
+    -fx-background-color: #1e293b;
+    -fx-text-fill: #e2e8f0;
+    -fx-border-color: #334155;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8 16;
+    -fx-cursor: hand;
+    -fx-font-size: 14px;
+}
+
+.week-nav-btn:hover {
+    -fx-border-color: #7c3aed;
+    -fx-text-fill: #a78bfa;
+}
+
+.week-label {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f1f5f9;
+    -fx-padding: 0 12;
+}
+
+.room-filter-bar {
+    -fx-spacing: 8;
+    -fx-alignment: center;
+    -fx-padding: 4 0;
+}
+
+.room-tab {
+    -fx-background-color: #1e293b;
+    -fx-text-fill: #94a3b8;
+    -fx-border-color: #334155;
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+    -fx-padding: 6 18;
+    -fx-font-size: 13px;
+    -fx-cursor: hand;
+}
+
+.room-tab:hover {
+    -fx-border-color: #7c3aed;
+    -fx-text-fill: #e2e8f0;
+}
+
+.room-tab-active {
+    -fx-background-color: #7c3aed;
+    -fx-text-fill: white;
+    -fx-border-color: #7c3aed;
+    -fx-font-weight: bold;
+}
+
+.calendar-container {
+    -fx-padding: 4;
+    -fx-alignment: top-center;
+    -fx-spacing: 8;
+}
+
+.day-column {
+    -fx-alignment: top-center;
+    -fx-spacing: 6;
+    -fx-padding: 8;
+    -fx-background-color: #1e293b;
+    -fx-background-radius: 12;
+    -fx-border-color: #334155;
+    -fx-border-radius: 12;
+    -fx-min-width: 150;
+}
+
+.day-label {
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-text-fill: #a78bfa;
+    -fx-padding: 4 0 8 0;
+    -fx-text-alignment: center;
+}
+
+.room-box {
+    -fx-alignment: top-center;
+    -fx-spacing: 4;
+    -fx-padding: 4 0;
+}
+
+.room-label {
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-text-fill: #c4b5fd;
+    -fx-underline: true;
+    -fx-padding: 2 0;
+}
+
+.slot-available {
+    -fx-background-color: #0f172a;
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 12px;
+    -fx-min-width: 130;
+    -fx-background-radius: 8;
+    -fx-border-color: #334155;
+    -fx-border-radius: 8;
+    -fx-border-style: dashed;
+    -fx-padding: 6 8;
+    -fx-cursor: hand;
+}
+
+.slot-available:hover {
+    -fx-border-color: #7c3aed;
+    -fx-text-fill: #e2e8f0;
+    -fx-border-style: solid;
+}
+
+.slot-booked {
+    -fx-text-fill: #1e293b;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-min-width: 130;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 6 8;
+    -fx-cursor: hand;
+}
+
+.slot-booked:hover {
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 8, 0, 0, 2);
+    -fx-translate-y: -1;
+}
+
+/* ---- Booking Modal ---- */
+.booking-form {
+    -fx-padding: 20;
+    -fx-vgap: 12;
+    -fx-hgap: 12;
+}
+
+.booking-form .label {
+    -fx-text-fill: #cbd5e1;
+    -fx-font-weight: bold;
+}
+
+.booking-form .text-field,
+.booking-form .text-area,
+.booking-form .combo-box {
+    -fx-background-color: #0f172a;
+    -fx-border-color: #334155;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-text-fill: #f1f5f9;
+    -fx-prompt-text-fill: #64748b;
+    -fx-padding: 8 12;
+}
+
+/* Dialog pane styling */
+.dialog-pane {
+    -fx-background-color: #1e293b;
+}
+
+.dialog-pane>.button-bar>.container {
+    -fx-background-color: #1e293b;
+}
+
+.dialog-pane>.content {
+    -fx-background-color: #1e293b;
+}
+
+.dialog-pane .header-panel {
+    -fx-background-color: #1e293b;
+}
+
+/* ================================================================
+   CLIENT MANAGEMENT
+   ================================================================ */
+.clients-pane {
+    -fx-spacing: 16;
+}
+
+.search-bar {
+    -fx-padding: 0 0 8 0;
+    -fx-alignment: center;
+    -fx-spacing: 10;
+}
+
+.search-field {
+    -fx-background-color: #1e293b;
+    -fx-border-color: #334155;
+    -fx-border-radius: 20;
+    -fx-background-radius: 20;
+    -fx-text-fill: #f1f5f9;
+    -fx-prompt-text-fill: #64748b;
+    -fx-padding: 8 20;
+    -fx-pref-width: 350;
+}
+
+.search-field:focused {
+    -fx-border-color: #7c3aed;
+    -fx-border-width: 2;
+}
+
+.client-count {
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 13px;
+}
+
+.client-card {
+    -fx-background-color: #1e293b;
+    -fx-border-color: #334155;
+    -fx-border-radius: 12;
+    -fx-background-radius: 12;
+    -fx-padding: 16;
+    -fx-alignment: center-right;
+    -fx-pref-width: 500;
+    -fx-spacing: 6;
+    -fx-cursor: hand;
+}
+
+.client-card:hover {
+    -fx-border-color: #7c3aed;
+    -fx-effect: dropshadow(gaussian, rgba(124, 58, 237, 0.15), 12, 0, 0, 2);
+    -fx-translate-y: -2;
+}
+
+.client-name {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f1f5f9;
+}
+
+.client-detail {
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 13px;
+}
+
+/* ---- Pagination ---- */
+.navigation-bar {
+    -fx-padding: 12 0 0 0;
+    -fx-alignment: center;
+    -fx-spacing: 8;
+}
+
+.page-btn {
+    -fx-background-color: #1e293b;
+    -fx-text-fill: #e2e8f0;
+    -fx-border-color: #334155;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+    -fx-padding: 8 14;
+    -fx-cursor: hand;
+}
+
+.page-btn:hover {
+    -fx-border-color: #7c3aed;
+    -fx-text-fill: #a78bfa;
+}
+
+.page-btn:disabled {
+    -fx-opacity: 0.4;
+    -fx-cursor: default;
+}
+
+.page-indicator {
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 13px;
+    -fx-padding: 8 12;
+}
+
+/* ---- Tooltips ---- */
+.tooltip {
+    -fx-background-color: #334155;
+    -fx-text-fill: #f1f5f9;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
+    -fx-padding: 6 12;
+    -fx-font-size: 12px;
+}
+
+/* ================================================================
+   ALL-ROOMS VIEW (room-as-column layout)
+   ================================================================ */
+.room-column-header {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #c4b5fd;
+    -fx-padding: 6 4 10 4;
+    -fx-text-alignment: center;
+    -fx-alignment: center;
+    -fx-border-color: #334155;
+    -fx-border-width: 0 0 1 0;
+}
+
+.day-sub-header {
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #94a3b8;
+    -fx-padding: 6 4 2 4;
+    -fx-background-color: rgba(51, 65, 85, 0.3);
+    -fx-background-radius: 4;
+}
+
+/* ---- Sync Indicator ---- */
+.sync-indicator {
+    -fx-font-size: 16px;
+    -fx-padding: 4 8;
+}

@@ -1,7 +1,5 @@
-# ===== Java / Maven =====
 HELP.md
 target/
-out/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
@@ -16,7 +14,7 @@ out/
 .sts4-cache
 
 ### IntelliJ IDEA ###
-.idea/
+.idea
 *.iws
 *.iml
 *.ipr
@@ -31,34 +29,5 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-# ===== Node.js / Web =====
-node_modules/
-dist/
-dist-ssr/
-*.local
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-# ===== Python =====
-__pycache__/
-*.py[cod]
-*.pyo
-venv/
-.env
-
-# ===== OS Files =====
-.DS_Store
-Thumbs.db
-
-# ===== Editor / IDE =====
+### VS Code ###
 .vscode/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?

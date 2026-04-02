@@ -1,0 +1,33 @@
+.booking-slot {
+  transition: transform 0.2s ease;
+}
+
+.booking-slot:hover {
+  transform: scale(1.02);
+}
+
+.booking-form input,
+.booking-form select,
+.booking-form textarea {
+  transition: border-color 0.2s ease;
+}
+
+.booking-form input:focus,
+.booking-form select:focus,
+.booking-form textarea:focus {
+  border-color: #2563eb;
+  outline: none;
+}
+
+.modal-overlay {
+  backdrop-filter: blur(4px);
+}
+
+.scrollable-days {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.scrollable-days::-webkit-scrollbar {
+  display: none;
+}
