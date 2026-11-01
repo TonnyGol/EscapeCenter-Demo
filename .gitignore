@@ -54,6 +54,10 @@ __pycache__/
 venv/
 .env
 
+# ===== Personal workflow notes =====
+/CLAUDE.md
+/ROADMAP-TO-PRODUCTION.md
+
 # ===== OS Files =====
 .DS_Store
 Thumbs.db
