@@ -6,7 +6,7 @@ React + Vite booking web client for EscapeCenter. Allows customers to view avail
 ---
 
 ## 📋 Prerequisites
-- **Node.js** (v16 or higher)
+- **Node.js** (v18 or higher)
 - **Backend API** running at `http://localhost:8080` (configurable via `.env`)
 
 ---
@@ -66,9 +66,3 @@ docker run -p 80:80 escapecenter-web
 | "לא ניתן להתחבר לשרת" | Start the backend server at `http://localhost:8080` |
 | Port 5173 in use | Vite auto-selects the next available port |
 | Module not found | Run `npm install` |
-
----
-
-## 📄 License
-
-Private project for EscapeCenter.
