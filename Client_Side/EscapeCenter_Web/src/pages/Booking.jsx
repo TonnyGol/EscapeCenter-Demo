@@ -3,12 +3,16 @@ import axios from "axios";
 import { useSearchParams } from "react-router-dom";
 import "./Booking.css";
 
+const MISSING_DETAILS_MESSAGE = "יש למלא שם פרטי, שם משפחה וטלפון.";
+const SAVE_FAILED_MESSAGE = "שגיאה בשמירת ההזמנה.";
+const HTTP_BAD_REQUEST = 400;
+
 const Booking = () => {
     const [searchParams] = useSearchParams();
     const preSelectedRoom = searchParams.get('room');
 
     const [isConnected, setIsConnected] = useState(false);
-    const [bookings, setBookings] = useState({});
+    const [bookings, setBookings] = useState(new Set());
     const [selectedSlot, setSelectedSlot] = useState(null);
     const [selectedRoom, setSelectedRoom] = useState(preSelectedRoom || "אחוזת השכן");
     const [formData, setFormData] = useState({
@@ -38,7 +42,7 @@ const Booking = () => {
     useEffect(() => {
         axios.get(`${API_URL}/bookings`)
             .then(res => {
-                setBookings(res.data || {});
+                setBookings(new Set(res.data));
                 setIsConnected(true);
             })
             .catch(err => {
@@ -55,6 +59,12 @@ const Booking = () => {
     const handleSubmit = () => {
         if (!selectedSlot) return;
 
+        const { firstName, lastName, phoneNumber } = formData;
+        if (![firstName, lastName, phoneNumber].every(value => value.trim())) {
+            alert(MISSING_DETAILS_MESSAGE);
+            return;
+        }
+
         const bookingID = `${selectedSlot.split('/')[0]}/${selectedSlot.split('/')[1]}`;
 
         const booking = {
@@ -68,7 +78,7 @@ const Booking = () => {
             .then(() => {
                 alert("הזמנה נשמרה בהצלחה!");
                 // Use the full selectedSlot as key (includes room) to match calendar lookup
-                setBookings(prev => ({ ...prev, [selectedSlot]: booking }));
+                setBookings(prev => new Set(prev).add(selectedSlot));
                 setSelectedSlot(null);
                 setFormData({
                     firstName: "",
@@ -81,7 +91,8 @@ const Booking = () => {
                 });
             })
             .catch(err => {
-                alert("שגיאה בשמירת ההזמנה.");
+                const serverReason = err.response?.status === HTTP_BAD_REQUEST ? `\n${err.response.data}` : "";
+                alert(SAVE_FAILED_MESSAGE + serverReason);
                 console.error(err);
             });
     };
@@ -122,7 +133,7 @@ const Booking = () => {
                             .toTimeString()
                             .substring(0, 5)}`;
                         const bookingKey = `${dateKey}/${timeRange}/${selectedRoom}`;
-                        const existing = bookings[bookingKey];
+                        const existing = bookings.has(bookingKey);
 
                         return (
                             <button

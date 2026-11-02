@@ -90,7 +90,8 @@ public final class ApiService {
     public Map<String, Booking> loadBookings() {
         try {
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl() + "/bookings"))
+                    .uri(URI.create(baseUrl() + "/server/bookings"))
+                    .header("Authorization", auth())
                     .GET()
                     .build();
 

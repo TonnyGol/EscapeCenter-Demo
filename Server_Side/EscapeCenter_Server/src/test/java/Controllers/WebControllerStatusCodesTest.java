@@ -19,9 +19,13 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -40,6 +44,7 @@ class WebControllerStatusCodesTest {
     private static final String ADD_BOOKING_URL = "/addBooking";
     private static final String UPDATE_BOOKING_URL = "/server/updateBooking";
     private static final String DELETE_BOOKING_URL = "/server/deleteBooking";
+    private static final String STAFF_BOOKINGS_URL = "/server/bookings";
 
     @Autowired
     private MockMvc mockMvc;
@@ -68,6 +73,20 @@ class WebControllerStatusCodesTest {
     }
 
     @Test
+    void createBooking_withBlankFirstName_returns400NamingTheField() throws Exception {
+        mockMvc.perform(jsonPost(ADD_BOOKING_URL, bookingJsonWith("", 2)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("firstName")));
+    }
+
+    @Test
+    void createBooking_withTooManyParticipants_returns400NamingTheField() throws Exception {
+        mockMvc.perform(jsonPost(ADD_BOOKING_URL, bookingJsonWith(TEST_CLIENT_FIRST_NAME, Booking.MAX_PARTICIPANTS + 1)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("participants")));
+    }
+
+    @Test
     void updateBooking_returns200ForExistingAnd404ForUnknown() throws Exception {
         mockMvc.perform(jsonPost(ADD_BOOKING_URL, bookingJson(BOOKING_ID))).andExpect(status().isCreated());
 
@@ -84,7 +103,7 @@ class WebControllerStatusCodesTest {
         mockMvc.perform(asAdmin(put(UPDATE_BOOKING_URL)).contentType(MediaType.APPLICATION_JSON)
                 .content(bookingJson(BOOKING_ID, CHANGED_PHONE))).andExpect(status().isOk());
 
-        mockMvc.perform(get(ALL_BOOKINGS_URL))
+        mockMvc.perform(asAdmin(get(STAFF_BOOKINGS_URL)))
                 .andExpect(jsonPath("$['" + BOOKING_ID + "/" + ROOM + "'].phoneNumber").value(CHANGED_PHONE));
     }
 
@@ -103,6 +122,17 @@ class WebControllerStatusCodesTest {
         mockMvc.perform(jsonPost(DELETE_BOOKING_URL, deleteJson(BOOKING_ID))).andExpect(status().isUnauthorized());
         mockMvc.perform(put(UPDATE_BOOKING_URL).contentType(MediaType.APPLICATION_JSON)
                 .content(bookingJson(BOOKING_ID))).andExpect(status().isUnauthorized());
+        mockMvc.perform(get(STAFF_BOOKINGS_URL)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void publicBookings_listsTakenSlotsWithoutPersonalData() throws Exception {
+        mockMvc.perform(jsonPost(ADD_BOOKING_URL, bookingJson(BOOKING_ID))).andExpect(status().isCreated());
+
+        mockMvc.perform(get(ALL_BOOKINGS_URL))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasItem(BOOKING_ID + "/" + ROOM)))
+                .andExpect(content().string(not(containsString(TEST_CLIENT_FIRST_NAME))));
     }
 
     private static MockHttpServletRequestBuilder jsonPost(String url, String body) {
@@ -122,6 +152,11 @@ class WebControllerStatusCodesTest {
     private String bookingJson(String bookingId, String phoneNumber) throws Exception {
         return objectMapper.writeValueAsString(new Booking(bookingId, ROOM, TEST_CLIENT_FIRST_NAME,
                 "TestLast", phoneNumber, "test@example.com", "beginner", "note", 2, "#ffffff"));
+    }
+
+    private String bookingJsonWith(String firstName, int participants) throws Exception {
+        return objectMapper.writeValueAsString(new Booking(BOOKING_ID, ROOM, firstName,
+                "TestLast", ORIGINAL_PHONE, "test@example.com", "beginner", "note", participants, "#ffffff"));
     }
 
     private static String deleteJson(String bookingId) {
