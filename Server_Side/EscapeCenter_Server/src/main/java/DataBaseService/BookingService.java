@@ -8,11 +8,10 @@ import java.util.Map;
 
 public class BookingService extends DefaultService {
 
-    public static void addBooking(Booking booking) {
+    public static void addBooking(Booking booking) throws SQLException {
         String insertClientSQL = "INSERT IGNORE INTO clients (firstName, lastName, phoneNumber, email) VALUES (?, ?, ?, ?)";
         String insertBookingSQL = "INSERT INTO bookings (BookingID, room, firstName, lastName," +
                 "phoneNumber, email, experience, notes, participants, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
         try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS)) {
             conn.setAutoCommit(false);
 
@@ -42,16 +41,13 @@ public class BookingService extends DefaultService {
                 conn.commit();
             } catch (SQLException ex) {
                 conn.rollback();
-                ex.printStackTrace();
+                throw ex;
             }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
     }
 
 
-    public static void updateBooking(Booking booking) {
+    public static int updateBooking(Booking booking) throws SQLException {
         String sql = "UPDATE bookings SET firstName=?, lastName=?, email=?, experience=?, notes=?, participants=?, color=? WHERE BookingID=? AND room=?";
         try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -64,21 +60,23 @@ public class BookingService extends DefaultService {
             stmt.setString(7, booking.getColor());
             stmt.setString(8, booking.getBookingID());
             stmt.setString(9, booking.getRoom());
-            stmt.executeUpdate();
+
+            return stmt.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw e;
         }
     }
 
-    public static void deleteBooking(String bookingID, String room) {
+    public static int deleteBooking(String bookingID, String room) throws SQLException {
         String sql = "DELETE FROM bookings WHERE BookingID=? AND room=?";
         try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, bookingID);
             stmt.setString(2, room);
-            stmt.executeUpdate();
+
+            return stmt.executeUpdate();
         } catch (SQLException e) {
-            e.printStackTrace();
+            throw e;
         }
     }
 

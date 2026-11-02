@@ -5,6 +5,7 @@ import model.Client;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -42,6 +43,11 @@ public final class ApiService {
 
     private String auth() {
         return Session.getInstance().getAuthHeader();
+    }
+
+    private static boolean isSuccessful(HttpResponse<?> response) {
+        int status = response.statusCode();
+        return status >= HttpURLConnection.HTTP_OK && status < HttpURLConnection.HTTP_MULT_CHOICE;
     }
 
     // ---- Authentication ----
@@ -123,7 +129,7 @@ public final class ApiService {
             HttpResponse<String> response =
                     http().send(request, HttpResponse.BodyHandlers.ofString());
 
-            if (response.statusCode() == 200) {
+            if (isSuccessful(response)) {
                 System.out.println("[ApiService] Booking saved successfully!");
                 return true;
             } else {
@@ -148,13 +154,13 @@ public final class ApiService {
                     .uri(URI.create(baseUrl() + "/server/updateBooking"))
                     .header("Authorization", auth())
                     .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .PUT(HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
             HttpResponse<String> response =
                     http().send(request, HttpResponse.BodyHandlers.ofString());
 
-            if (response.statusCode() == 200) {
+            if (isSuccessful(response)) {
                 System.out.println("[ApiService] Booking updated successfully!");
                 return true;
             } else {
@@ -186,7 +192,7 @@ public final class ApiService {
             HttpResponse<String> response =
                     http().send(request, HttpResponse.BodyHandlers.ofString());
 
-            if (response.statusCode() == 200) {
+            if (isSuccessful(response)) {
                 System.out.println("[ApiService] Booking deleted successfully!");
                 return true;
             } else {

@@ -15,7 +15,7 @@ public abstract class DefaultService {
 
     public static final String DB_PASS = requireEnv(ENV_DB_PASS);
 
-    private static String requireEnv(String name) {
+    public static String requireEnv(String name) {
         String value = System.getenv(name);
         if (value == null || value.isBlank()) {
             throw new IllegalStateException(name + MISSING_ENV_MESSAGE);
