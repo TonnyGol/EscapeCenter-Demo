@@ -69,7 +69,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
                 <configuration>
-                    <mainClass>com.example.escapecenter.MainApp</mainClass>
+                    <mainClass>App.MainApp</mainClass>
                 </configuration>
             </plugin>
 
@@ -79,7 +79,7 @@
                 <artifactId>javafx-maven-plugin</artifactId>
                 <version>0.0.8</version>
                 <configuration>
-                    <mainClass>com.example.escapecenter.MainApp</mainClass>
+                    <mainClass>App.MainApp</mainClass>
                 </configuration>
             </plugin>
         </plugins>

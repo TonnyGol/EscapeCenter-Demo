@@ -1,0 +1,21 @@
+services:
+  mysql:
+    image: mysql:8.4
+    command: --character-set-server=utf8mb4
+    env_file: .env
+    ports:
+      # Bound to this machine only: the root account accepts logins from any address.
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./Server_Side/EscapeCenter_Server/db/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      # 127.0.0.1 forces TCP. MySQL's temporary init server has networking off, so it can't pass this check early.
+      test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  mysql_data:
