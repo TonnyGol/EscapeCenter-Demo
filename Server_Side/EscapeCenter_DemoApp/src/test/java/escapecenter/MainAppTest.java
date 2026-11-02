@@ -8,6 +8,6 @@ class MainAppTest {
 
     @Test
     void sessionSingletonExists() {
-        assertNotNull(escapecenter.service.Session.getInstance());
+        assertNotNull(service.Session.getInstance());
     }
 }

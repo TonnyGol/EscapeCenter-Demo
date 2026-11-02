@@ -1,4 +1,6 @@
-package EscapeCenter_Server;
+package Services;
+
+import Entities.Booking;
 
 import jakarta.mail.*;
 import jakarta.mail.internet.*;

@@ -1,4 +1,4 @@
-package EscapeCenter_Server.Requests;
+package Requests;
 
 public class DeleteRequest {
     private final String bookingID, roomName;

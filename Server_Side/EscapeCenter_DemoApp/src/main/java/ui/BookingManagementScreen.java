@@ -1,7 +1,7 @@
-package escapecenter.ui;
+package ui;
 
-import escapecenter.model.Booking;
-import escapecenter.service.ApiService;
+import model.Booking;
+import service.ApiService;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;

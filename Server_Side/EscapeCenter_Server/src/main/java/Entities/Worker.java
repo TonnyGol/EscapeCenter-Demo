@@ -1,4 +1,4 @@
-package EscapeCenter_Server;
+package Entities;
 
 public class Worker {
     private String username;

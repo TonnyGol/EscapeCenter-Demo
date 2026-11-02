@@ -1,6 +1,6 @@
-package escapecenter.ui;
+package ui;
 
-import escapecenter.service.Session;
+import service.Session;
 import javafx.animation.FadeTransition;
 import javafx.geometry.NodeOrientation;
 import javafx.geometry.Pos;

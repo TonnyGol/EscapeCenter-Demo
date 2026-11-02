@@ -1,4 +1,4 @@
-package EscapeCenter_Server.Requests;
+package Requests;
 
 public class LoginRequest {
     private final String username, password;

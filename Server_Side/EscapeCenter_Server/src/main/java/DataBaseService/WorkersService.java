@@ -1,4 +1,4 @@
-package EscapeCenter_Server.DataBaseService;
+package DataBaseService;
 
 import java.sql.*;
 

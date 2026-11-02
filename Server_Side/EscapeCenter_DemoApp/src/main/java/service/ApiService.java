@@ -1,7 +1,7 @@
-package escapecenter.service;
+package service;
 
-import escapecenter.model.Booking;
-import escapecenter.model.Client;
+import model.Booking;
+import model.Client;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 

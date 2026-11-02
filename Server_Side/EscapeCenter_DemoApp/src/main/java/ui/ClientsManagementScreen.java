@@ -1,8 +1,8 @@
-package escapecenter.ui;
+package ui;
 
-import escapecenter.model.Booking;
-import escapecenter.model.Client;
-import escapecenter.service.ApiService;
+import model.Booking;
+import model.Client;
+import service.ApiService;
 import javafx.geometry.*;
 import javafx.scene.Node;
 import javafx.scene.Scene;

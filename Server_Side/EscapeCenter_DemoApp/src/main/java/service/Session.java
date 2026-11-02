@@ -1,4 +1,4 @@
-package escapecenter.service;
+package service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 

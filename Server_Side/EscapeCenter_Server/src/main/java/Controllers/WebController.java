@@ -1,11 +1,14 @@
-package EscapeCenter_Server;
+package Controllers;
+
+import Entities.Booking;
+import Entities.Client;
 
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-import EscapeCenter_Server.DataBaseService.BookingService;
-import EscapeCenter_Server.DataBaseService.ClientsService;
-import EscapeCenter_Server.Requests.DeleteRequest;
+import DataBaseService.BookingService;
+import DataBaseService.ClientsService;
+import Requests.DeleteRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

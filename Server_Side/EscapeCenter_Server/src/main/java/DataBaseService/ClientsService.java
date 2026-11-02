@@ -1,6 +1,6 @@
-package EscapeCenter_Server.DataBaseService;
+package DataBaseService;
 
-import EscapeCenter_Server.Client;
+import Entities.Client;
 import java.sql.*;
 import java.util.*;
 

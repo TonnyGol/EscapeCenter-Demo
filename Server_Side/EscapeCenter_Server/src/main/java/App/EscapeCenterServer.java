@@ -1,13 +1,17 @@
-package EscapeCenter_Server;
+package App;
 
-import EscapeCenter_Server.DataBaseService.DefaultService;
+import Controllers.WebController;
+import DataBaseService.DefaultService;
+import Security.SecurityConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.util.Objects;
 
 
-@SpringBootApplication
+// This class is not in a parent package of the controllers and configs, so Spring must be told where they are.
+// Add a class here when a new package gets Spring beans (CorsConfig shares the package of SecurityConfig).
+@SpringBootApplication(scanBasePackageClasses = {WebController.class, SecurityConfig.class})
 public class EscapeCenterServer {
 
 	public static void main(String[] args) {

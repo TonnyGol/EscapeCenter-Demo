@@ -1,6 +1,6 @@
-package escapecenter.service;
+package service;
 
-import escapecenter.model.Booking;
+import model.Booking;
 import jakarta.mail.*;
 import jakarta.mail.internet.*;
 

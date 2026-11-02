@@ -1,6 +1,6 @@
-package escapecenter.ui;
+package ui;
 
-import escapecenter.service.Session;
+import service.Session;
 import javafx.geometry.*;
 import javafx.scene.Node;
 import javafx.scene.control.*;
