@@ -13,7 +13,7 @@ The Server Side contains two applications:
 ## 📋 Prerequisites
 - **Java 21** (JDK)
 - **Maven** (or use the included `mvnw` wrapper)
-- **MySQL** database
+- **Docker** (for the MySQL container, see the root `README.md`)
 
 ---
 
@@ -36,8 +36,8 @@ mvn javafx:run
 
 ## ⚙️ Configuration
 
-- **Server**: `EscapeCenter_Server/src/main/resources/application.properties`
-- **DemoApp**: `EscapeCenter_DemoApp/src/main/resources/config.properties`
+- **Server**: environment variables `DB_URL` (optional), `DB_USER`, `DB_PASS`, `APP_ADMIN_USER`, `APP_ADMIN_PASSWORD`. See `.env.example` in the repo root.
+- **DemoApp**: optional `src/main/resources/config.properties` with `server.url` (defaults to `http://localhost:8080`).
 
 ---
 
@@ -46,11 +46,8 @@ mvn javafx:run
 ```bash
 cd Server_Side/EscapeCenter_Server
 docker build -t escapecenter-server .
-docker run -p 8080:8080 escapecenter-server
+docker run -p 8080:8080 \
+  -e DB_USER=... -e DB_PASS=... -e APP_ADMIN_USER=... -e APP_ADMIN_PASSWORD=... \
+  -e DB_URL=jdbc:mysql://host.docker.internal:3306/escapecenter \
+  escapecenter-server
 ```
-
----
-
-## 📄 License
-
-Private project for EscapeCenter.
