@@ -54,10 +54,11 @@ One-command start (`docker compose up` for the whole stack) arrives with the CI/
 
 | Method | Path | Access | Purpose |
 |--------|------|--------|---------|
-| GET | `/bookings` | public | List all bookings |
+| GET | `/bookings` | public | List taken slots (keys only, no personal data) |
 | POST | `/addBooking` | public | Create a booking |
 | PUT | `/server/updateBooking` | staff | Update a booking |
 | POST | `/server/deleteBooking` | staff | Delete a booking |
+| GET | `/server/bookings` | staff | List all bookings with details |
 | GET | `/server/clients` | staff | List all clients |
 | GET | `/server/test` | staff | Check the staff login |
 
