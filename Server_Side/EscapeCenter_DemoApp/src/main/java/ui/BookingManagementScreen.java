@@ -36,6 +36,8 @@ public class BookingManagementScreen {
     private final Map<String, Booking> bookings = new HashMap<>();
     private final Map<String, Button> slotButtons = new HashMap<>();
     private final DateTimeFormatter timeFormat = DateTimeFormatter.ofPattern("HH:mm");
+    // The year is part of the key so a slot does not clash with the same slot a year later.
+    private final DateTimeFormatter slotDateFormat = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     private static final Map<DayOfWeek, String> HEBREW_DAYS = Map.of(
             DayOfWeek.SUNDAY, "ראשון",
@@ -297,7 +299,7 @@ public class BookingManagementScreen {
                     LocalTime start = START_TIME.plusMinutes((long) j * (APPOINTMENT_DURATION + BREAK_DURATION));
                     LocalTime end = start.plusMinutes(APPOINTMENT_DURATION);
                     String timeRange = start.format(timeFormat) + "-" + end.format(timeFormat);
-                    String key = date.format(DateTimeFormatter.ofPattern("dd.MM")) + "/" + timeRange;
+                    String key = date.format(slotDateFormat) + "/" + timeRange;
 
                     Button slotBtn = createSlotButton(date, room, key, timeRange);
                     roomColumn.getChildren().add(slotBtn);
@@ -363,7 +365,7 @@ public class BookingManagementScreen {
             LocalTime start = START_TIME.plusMinutes((long) j * (APPOINTMENT_DURATION + BREAK_DURATION));
             LocalTime end = start.plusMinutes(APPOINTMENT_DURATION);
             String timeRange = start.format(timeFormat) + "-" + end.format(timeFormat);
-            String key = date.format(DateTimeFormatter.ofPattern("dd.MM")) + "/" + timeRange;
+            String key = date.format(slotDateFormat) + "/" + timeRange;
 
             Button slotBtn = createSlotButton(date, room, key, timeRange);
             roomBox.getChildren().add(slotBtn);

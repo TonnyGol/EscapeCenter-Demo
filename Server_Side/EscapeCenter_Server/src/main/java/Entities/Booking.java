@@ -4,11 +4,14 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public class Booking {
     // Limits match the column sizes in db/init/01-schema.sql.
     public static final int MAX_ID_LENGTH = 50;
+    // dd.MM.yyyy/HH:mm-HH:mm. The year keeps a slot from clashing with the same slot a year later.
+    public static final String BOOKING_ID_FORMAT = "\\d{2}\\.\\d{2}\\.\\d{4}/\\d{2}:\\d{2}-\\d{2}:\\d{2}";
     public static final int MAX_NAME_LENGTH = 50;
     public static final int MAX_PHONE_LENGTH = 20;
     public static final int MAX_EMAIL_LENGTH = 100;
@@ -18,7 +21,7 @@ public class Booking {
     public static final int MIN_PARTICIPANTS = 1;
     public static final int MAX_PARTICIPANTS = 12;
 
-    @NotBlank @Size(max = MAX_ID_LENGTH)
+    @NotBlank @Size(max = MAX_ID_LENGTH) @Pattern(regexp = BOOKING_ID_FORMAT)
     private final String bookingID;
     @NotBlank @Size(max = MAX_ID_LENGTH)
     private final String room;

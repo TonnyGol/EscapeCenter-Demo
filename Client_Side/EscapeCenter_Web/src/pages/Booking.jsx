@@ -103,7 +103,7 @@ const Booking = () => {
         const day = new Date(sunday);
         day.setDate(sunday.getDate() + dayOffset);
 
-        const dateKey = day.toLocaleDateString("he-IL", { day: '2-digit', month: '2-digit' }).replace("/", ".");
+        const dateKey = day.toLocaleDateString("he-IL", { day: '2-digit', month: '2-digit', year: 'numeric' }).replaceAll("/", ".");
 
         return (
             <div className="day-column" key={dayOffset}>

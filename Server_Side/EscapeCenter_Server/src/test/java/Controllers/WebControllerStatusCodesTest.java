@@ -34,8 +34,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class WebControllerStatusCodesTest {
 
-    private static final String BOOKING_ID = "TEST-01.01/10:00-11:00";
-    private static final String UNKNOWN_BOOKING_ID = "TEST-99.99/00:00-01:00";
+    private static final String BOOKING_ID = "01.01.2099/10:00-11:00";
+    private static final String UNKNOWN_BOOKING_ID = "31.12.2099/00:00-01:00";
+    private static final String BOOKING_ID_NEXT_YEAR = "01.01.2100/10:00-11:00";
+    private static final String BOOKING_ID_WITHOUT_YEAR = "01.01/10:00-11:00";
     private static final String ROOM = "TestRoom";
     private static final String TEST_CLIENT_FIRST_NAME = "TestFirst";
     private static final String ORIGINAL_PHONE = "050-0000000";
@@ -57,6 +59,7 @@ class WebControllerStatusCodesTest {
         try (Connection connection = DriverManager.getConnection(
                 DefaultService.JDBC_URL, DefaultService.DB_USER, DefaultService.DB_PASS)) {
             execute(connection, "DELETE FROM bookings WHERE BookingID = ?", BOOKING_ID);
+            execute(connection, "DELETE FROM bookings WHERE BookingID = ?", BOOKING_ID_NEXT_YEAR);
             execute(connection, "DELETE FROM clients WHERE firstName = ?", TEST_CLIENT_FIRST_NAME);
         }
     }
@@ -77,6 +80,19 @@ class WebControllerStatusCodesTest {
         mockMvc.perform(jsonPost(ADD_BOOKING_URL, bookingJsonWith("", 2)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string(containsString("firstName")));
+    }
+
+    @Test
+    void createBooking_withBookingIdMissingTheYear_returns400NamingTheField() throws Exception {
+        mockMvc.perform(jsonPost(ADD_BOOKING_URL, bookingJson(BOOKING_ID_WITHOUT_YEAR)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string(containsString("bookingID")));
+    }
+
+    @Test
+    void createBooking_sameSlotInTheNextYear_returns201() throws Exception {
+        mockMvc.perform(jsonPost(ADD_BOOKING_URL, bookingJson(BOOKING_ID))).andExpect(status().isCreated());
+        mockMvc.perform(jsonPost(ADD_BOOKING_URL, bookingJson(BOOKING_ID_NEXT_YEAR))).andExpect(status().isCreated());
     }
 
     @Test
