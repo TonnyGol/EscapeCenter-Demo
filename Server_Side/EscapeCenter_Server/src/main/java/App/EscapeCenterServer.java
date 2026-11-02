@@ -15,7 +15,6 @@ import java.util.Objects;
 public class EscapeCenterServer {
 
 	public static void main(String[] args) {
-		System.setProperty("java.awt.headless", "false");
 		// Touching DB_PASS loads DefaultService now, so a missing env var fails at startup instead of on the first request.
 		Objects.requireNonNull(DefaultService.DB_PASS);
 

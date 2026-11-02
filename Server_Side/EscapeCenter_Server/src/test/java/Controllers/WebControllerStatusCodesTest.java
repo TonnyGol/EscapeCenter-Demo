@@ -19,8 +19,10 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 // shortcut: runs against the Docker MySQL (`docker compose up -d`) with DB_* and APP_ADMIN_* set; roadmap Phase 5 moves it to Testcontainers.
@@ -32,6 +34,9 @@ class WebControllerStatusCodesTest {
     private static final String UNKNOWN_BOOKING_ID = "TEST-99.99/00:00-01:00";
     private static final String ROOM = "TestRoom";
     private static final String TEST_CLIENT_FIRST_NAME = "TestFirst";
+    private static final String ORIGINAL_PHONE = "050-0000000";
+    private static final String CHANGED_PHONE = "051-1111111";
+    private static final String ALL_BOOKINGS_URL = "/bookings";
     private static final String ADD_BOOKING_URL = "/addBooking";
     private static final String UPDATE_BOOKING_URL = "/server/updateBooking";
     private static final String DELETE_BOOKING_URL = "/server/deleteBooking";
@@ -73,6 +78,17 @@ class WebControllerStatusCodesTest {
     }
 
     @Test
+    void updateBooking_savesTheChangedPhoneNumber() throws Exception {
+        mockMvc.perform(jsonPost(ADD_BOOKING_URL, bookingJson(BOOKING_ID))).andExpect(status().isCreated());
+
+        mockMvc.perform(asAdmin(put(UPDATE_BOOKING_URL)).contentType(MediaType.APPLICATION_JSON)
+                .content(bookingJson(BOOKING_ID, CHANGED_PHONE))).andExpect(status().isOk());
+
+        mockMvc.perform(get(ALL_BOOKINGS_URL))
+                .andExpect(jsonPath("$['" + BOOKING_ID + "/" + ROOM + "'].phoneNumber").value(CHANGED_PHONE));
+    }
+
+    @Test
     void deleteBooking_returns204ForExisting_thenSameBookingAgainReturns404() throws Exception {
         mockMvc.perform(jsonPost(ADD_BOOKING_URL, bookingJson(BOOKING_ID))).andExpect(status().isCreated());
 
@@ -100,8 +116,12 @@ class WebControllerStatusCodesTest {
     }
 
     private String bookingJson(String bookingId) throws Exception {
+        return bookingJson(bookingId, ORIGINAL_PHONE);
+    }
+
+    private String bookingJson(String bookingId, String phoneNumber) throws Exception {
         return objectMapper.writeValueAsString(new Booking(bookingId, ROOM, TEST_CLIENT_FIRST_NAME,
-                "TestLast", "050", "test@example.com", "beginner", "note", 2, "#ffffff"));
+                "TestLast", phoneNumber, "test@example.com", "beginner", "note", 2, "#ffffff"));
     }
 
     private static String deleteJson(String bookingId) {

@@ -16,7 +16,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@CrossOrigin(origins = "")
 @RestController
 public class WebController {
     private static final Logger LOG = LoggerFactory.getLogger(WebController.class);
@@ -47,7 +46,7 @@ public class WebController {
     }
 
     @GetMapping("/server/clients")
-    public ResponseEntity<Map<String, Client>> getAllClients() {
+    public ResponseEntity<Map<String, Client>> getAllClients() throws SQLException {
         return ResponseEntity.ok(ClientsService.getAllClients());
     }
 
@@ -62,7 +61,7 @@ public class WebController {
     }
 
     @GetMapping("/bookings")
-    public ResponseEntity<Map<String, Booking>> getAllBookings() {
+    public ResponseEntity<Map<String, Booking>> getAllBookings() throws SQLException {
         return ResponseEntity.ok(BookingService.getAllBookings());
     }
 

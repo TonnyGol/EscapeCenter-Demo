@@ -6,7 +6,7 @@ import java.util.*;
 
 public class ClientsService extends DefaultService {
 
-    public static Map<String, Client> getAllClients() {
+    public static Map<String, Client> getAllClients() throws SQLException {
         Map<String, Client> allClients = new HashMap<>();
 
         String query = "SELECT firstName, lastName, phoneNumber, email FROM clients";
@@ -25,9 +25,6 @@ public class ClientsService extends DefaultService {
                 Client client = new Client(firstName, lastName, phoneNumber, email);
                 allClients.put(key, client);
             }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
 
         return allClients;

@@ -48,22 +48,21 @@ public class BookingService extends DefaultService {
 
 
     public static int updateBooking(Booking booking) throws SQLException {
-        String sql = "UPDATE bookings SET firstName=?, lastName=?, email=?, experience=?, notes=?, participants=?, color=? WHERE BookingID=? AND room=?";
+        String sql = "UPDATE bookings SET firstName=?, lastName=?, phoneNumber=?, email=?, experience=?, notes=?, participants=?, color=? WHERE BookingID=? AND room=?";
         try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, booking.getFirstName());
             stmt.setString(2, booking.getLastName());
-            stmt.setString(3, booking.getEmail());
-            stmt.setString(4, booking.getExperience());
-            stmt.setString(5, booking.getNotes());
-            stmt.setInt(6, booking.getParticipants());
-            stmt.setString(7, booking.getColor());
-            stmt.setString(8, booking.getBookingID());
-            stmt.setString(9, booking.getRoom());
+            stmt.setString(3, booking.getPhoneNumber());
+            stmt.setString(4, booking.getEmail());
+            stmt.setString(5, booking.getExperience());
+            stmt.setString(6, booking.getNotes());
+            stmt.setInt(7, booking.getParticipants());
+            stmt.setString(8, booking.getColor());
+            stmt.setString(9, booking.getBookingID());
+            stmt.setString(10, booking.getRoom());
 
             return stmt.executeUpdate();
-        } catch (SQLException e) {
-            throw e;
         }
     }
 
@@ -75,12 +74,10 @@ public class BookingService extends DefaultService {
             stmt.setString(2, room);
 
             return stmt.executeUpdate();
-        } catch (SQLException e) {
-            throw e;
         }
     }
 
-    public static Map<String, Booking> getAllBookings() {
+    public static Map<String, Booking> getAllBookings() throws SQLException {
         Map<String, Booking> allBookings = new HashMap<>();
 
         try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
@@ -103,8 +100,6 @@ public class BookingService extends DefaultService {
                 );
                 allBookings.put(key+"/"+booking.getRoom(), booking);
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
 
         return allBookings;

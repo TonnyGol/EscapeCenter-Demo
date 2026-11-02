@@ -85,22 +85,6 @@ public final class Session {
         return config.getProperty("server.url", "http://localhost:8080");
     }
 
-    public String getEmailSender() {
-        return config.getProperty("email.sender", "");
-    }
-
-    public String getEmailPassword() {
-        return config.getProperty("email.password", "");
-    }
-
-    public String getSmtpHost() {
-        return config.getProperty("email.smtp.host", "smtp.gmail.com");
-    }
-
-    public String getSmtpPort() {
-        return config.getProperty("email.smtp.port", "587");
-    }
-
     private Properties loadConfig() {
         Properties props = new Properties();
         try (InputStream is = getClass().getClassLoader()
