@@ -1,33 +1,27 @@
 package DataBaseService;
 
 import Entities.Client;
-import java.sql.*;
-import java.util.*;
+import Repositories.ClientRepository;
+import Responses.ClientResponse;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-public class ClientsService extends DefaultService {
+import java.util.List;
 
-    public static Map<String, Client> getAllClients() throws SQLException {
-        Map<String, Client> allClients = new HashMap<>();
+@Service
+public class ClientsService {
+    private final ClientRepository clientRepository;
 
-        String query = "SELECT firstName, lastName, phoneNumber, email FROM clients";
-
-        try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(query)) {
-
-            while (rs.next()) {
-                String firstName = rs.getString("firstName");
-                String lastName = rs.getString("lastName");
-                String phoneNumber = rs.getString("phoneNumber");
-                String email = rs.getString("email");
-
-                String key = firstName + " " + lastName;
-                Client client = new Client(firstName, lastName, phoneNumber, email);
-                allClients.put(key, client);
-            }
-        }
-
-        return allClients;
+    public ClientsService(ClientRepository clientRepository) {
+        this.clientRepository = clientRepository;
     }
 
+    /** @param query part of a first name, last name or phone number; blank returns every client */
+    @Transactional(readOnly = true)
+    public List<ClientResponse> searchClients(String query) {
+        List<Client> found = query == null || query.isBlank()
+                ? clientRepository.findAll()
+                : clientRepository.search(query.trim());
+        return found.stream().map(ClientResponse::from).toList();
+    }
 }

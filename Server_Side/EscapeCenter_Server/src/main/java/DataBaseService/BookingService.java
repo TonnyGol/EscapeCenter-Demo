@@ -1,108 +1,122 @@
 package DataBaseService;
 
 import Entities.Booking;
+import Entities.Client;
+import Entities.Room;
+import Repositories.BookingRepository;
+import Repositories.ClientRepository;
+import Repositories.RoomRepository;
+import Requests.BookingDetails;
+import Requests.ClientDetails;
+import Requests.CreateBookingRequest;
+import Requests.UpdateBookingRequest;
+import Responses.StaffBookingResponse;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.sql.*;
-import java.util.HashMap;
-import java.util.Map;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
 
-public class BookingService extends DefaultService {
+@Service
+public class BookingService {
+    private static final String BOOKING_NOT_FOUND_MESSAGE = "Booking not found.";
+    private static final String OFF_GRID_START_MESSAGE = "startAt: not a game start time of this room.";
+    private static final String PAST_START_MESSAGE = "startAt: must be a future date and time.";
+    private static final String SLOT_TAKEN_MESSAGE = "This slot is already booked.";
+    private static final String ROOM_TOO_SMALL_MESSAGE = "booking.participants: this room holds at most %d people.";
 
-    public static void addBooking(Booking booking) throws SQLException {
-        String insertClientSQL = "INSERT IGNORE INTO clients (firstName, lastName, phoneNumber, email) VALUES (?, ?, ?, ?)";
-        String insertBookingSQL = "INSERT INTO bookings (BookingID, room, firstName, lastName," +
-                "phoneNumber, email, experience, notes, participants, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS)) {
-            conn.setAutoCommit(false);
+    private final BookingRepository bookingRepository;
+    private final ClientRepository clientRepository;
+    private final RoomRepository roomRepository;
 
-            try (PreparedStatement clientStmt = conn.prepareStatement(insertClientSQL);
-                 PreparedStatement bookingStmt = conn.prepareStatement(insertBookingSQL)) {
+    public BookingService(BookingRepository bookingRepository, ClientRepository clientRepository,
+                          RoomRepository roomRepository) {
+        this.bookingRepository = bookingRepository;
+        this.clientRepository = clientRepository;
+        this.roomRepository = roomRepository;
+    }
 
-                // Insert client if not exists
-                clientStmt.setString(1, booking.getFirstName());
-                clientStmt.setString(2, booking.getLastName());
-                clientStmt.setString(3, booking.getPhoneNumber());
-                clientStmt.setString(4, booking.getEmail());
-                clientStmt.executeUpdate();
+    /**
+     * Customers can only book future slots and never change an existing client's details. Staff can book a game
+     * that already started (to log it and keep notes) and their client details replace the stored ones.
+     * The service checks for a taken slot first so the caller gets a clear 409; the unique (room, start)
+     * constraint in the database still catches two requests that pass the check at the same moment.
+     */
+    @Transactional
+    public void createBooking(CreateBookingRequest request, boolean bookedByStaff) {
+        Room room = roomRepository.findById(request.roomId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, RoomService.ROOM_NOT_FOUND_MESSAGE));
+        if (!bookedByStaff && !request.startAt().isAfter(LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAST_START_MESSAGE);
+        }
+        if (!SlotSchedule.startTimes(request.startAt().toLocalDate(), room).contains(request.startAt())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, OFF_GRID_START_MESSAGE);
+        }
+        requireRoomHolds(room, request.booking().participants());
+        if (bookingRepository.existsByRoomIdAndStartAt(room.getId(), request.startAt())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, SLOT_TAKEN_MESSAGE);
+        }
+        Booking booking = new Booking(room, request.startAt(), request.startAt().plusMinutes(room.getDurationMinutes()));
+        booking.setClient(bookedByStaff ? saveClientDetails(request.client()) : findOrCreateClient(request.client()));
+        copyDetails(booking, request.booking());
+        bookingRepository.save(booking);
+    }
 
-                // Insert booking
-                bookingStmt.setString(1, booking.getBookingID());
-                bookingStmt.setString(2, booking.getRoom());
-                bookingStmt.setString(3, booking.getFirstName());
-                bookingStmt.setString(4, booking.getLastName());
-                bookingStmt.setString(5, booking.getPhoneNumber());
-                bookingStmt.setString(6, booking.getEmail());
-                bookingStmt.setString(7, booking.getExperience());
-                bookingStmt.setString(8, booking.getNotes());
-                bookingStmt.setInt(9, booking.getParticipants());
-                bookingStmt.setString(10, booking.getColor());
-                bookingStmt.executeUpdate();
+    @Transactional(readOnly = true)
+    public List<StaffBookingResponse> getBookings(LocalDate from, LocalDate to, Long roomId) {
+        return bookingRepository.findInRange(from.atStartOfDay(), to.plusDays(1).atStartOfDay(), roomId).stream()
+                .map(StaffBookingResponse::from)
+                .toList();
+    }
 
-                conn.commit();
-            } catch (SQLException ex) {
-                conn.rollback();
-                throw ex;
-            }
+    @Transactional
+    public void updateBooking(Long id, UpdateBookingRequest request) {
+        Booking booking = findBookingById(id);
+        requireRoomHolds(booking.getRoom(), request.booking().participants());
+        booking.setClient(saveClientDetails(request.client()));
+        copyDetails(booking, request.booking());
+    }
+
+    @Transactional
+    public void deleteBooking(Long id) {
+        bookingRepository.delete(findBookingById(id));
+    }
+
+    // The phone number identifies a client. A stranger who knows it must not be able to change that client's name or email.
+    private Client findOrCreateClient(ClientDetails details) {
+        return clientRepository.findByPhoneNumber(details.phoneNumber())
+                .orElseGet(() -> saveClientDetails(details));
+    }
+
+    // Staff only: the given name and email replace the stored ones.
+    private Client saveClientDetails(ClientDetails details) {
+        Client client = clientRepository.findByPhoneNumber(details.phoneNumber())
+                .orElseGet(() -> new Client(details.phoneNumber()));
+        client.setFirstName(details.firstName());
+        client.setLastName(details.lastName());
+        client.setEmail(details.email());
+        return clientRepository.save(client);
+    }
+
+    private static void copyDetails(Booking booking, BookingDetails details) {
+        booking.setParticipants(details.participants());
+        booking.setExperience(details.experience());
+        booking.setColor(details.color());
+        booking.setNotes(details.notes());
+    }
+
+    private static void requireRoomHolds(Room room, int participants) {
+        if (participants > room.getCapacity()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    ROOM_TOO_SMALL_MESSAGE.formatted(room.getCapacity()));
         }
     }
 
-
-    public static int updateBooking(Booking booking) throws SQLException {
-        String sql = "UPDATE bookings SET firstName=?, lastName=?, phoneNumber=?, email=?, experience=?, notes=?, participants=?, color=? WHERE BookingID=? AND room=?";
-        try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, booking.getFirstName());
-            stmt.setString(2, booking.getLastName());
-            stmt.setString(3, booking.getPhoneNumber());
-            stmt.setString(4, booking.getEmail());
-            stmt.setString(5, booking.getExperience());
-            stmt.setString(6, booking.getNotes());
-            stmt.setInt(7, booking.getParticipants());
-            stmt.setString(8, booking.getColor());
-            stmt.setString(9, booking.getBookingID());
-            stmt.setString(10, booking.getRoom());
-
-            return stmt.executeUpdate();
-        }
-    }
-
-    public static int deleteBooking(String bookingID, String room) throws SQLException {
-        String sql = "DELETE FROM bookings WHERE BookingID=? AND room=?";
-        try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, bookingID);
-            stmt.setString(2, room);
-
-            return stmt.executeUpdate();
-        }
-    }
-
-    public static Map<String, Booking> getAllBookings() throws SQLException {
-        Map<String, Booking> allBookings = new HashMap<>();
-
-        try (Connection conn = DriverManager.getConnection(JDBC_URL, DB_USER, DB_PASS);
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT * FROM bookings")) {
-
-            while (rs.next()) {
-                String key = rs.getString("BookingID");
-                Booking booking = new Booking(
-                        key,
-                        rs.getString("room"),
-                        rs.getString("firstName"),
-                        rs.getString("lastName"),
-                        rs.getString("phoneNumber"),
-                        rs.getString("email"),
-                        rs.getString("experience"),
-                        rs.getString("notes"),
-                        rs.getInt("participants"),
-                        rs.getString("color")
-                );
-                allBookings.put(key+"/"+booking.getRoom(), booking);
-            }
-        }
-
-        return allBookings;
+    private Booking findBookingById(Long id) {
+        return bookingRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, BOOKING_NOT_FOUND_MESSAGE));
     }
 }
-

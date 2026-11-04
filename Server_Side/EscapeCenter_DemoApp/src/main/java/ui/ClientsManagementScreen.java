@@ -1,6 +1,5 @@
 package ui;
 
-import model.Booking;
 import model.Client;
 import service.ApiService;
 import javafx.geometry.*;
@@ -21,7 +20,6 @@ public class ClientsManagementScreen {
 
     private List<Client> clients;
     private Map<String, Client> clientMap = new HashMap<>();
-    private Map<String, Booking> bookings = new HashMap<>();
     private VBox cardDisplay;
     private Label pageLabel;
     private Label countLabel;
@@ -37,7 +35,6 @@ public class ClientsManagementScreen {
      */
     public Node createPane() {
         // Load data from server
-        bookings = new HashMap<>(ApiService.getInstance().loadBookings());
         clientMap = new HashMap<>(ApiService.getInstance().loadClients());
         clients = new ArrayList<>(clientMap.values());
 
@@ -209,14 +206,6 @@ public class ClientsManagementScreen {
         email.getStyleClass().add("client-detail");
 
         card.getChildren().addAll(name, phone, email);
-
-        // Show experience info from bookings
-        Booking booking = bookings.get(fullName);
-        if (booking != null) {
-            Label experience = new Label("🎯 ניסיון: " + booking.experience());
-            experience.getStyleClass().add("client-detail");
-            card.getChildren().add(experience);
-        }
 
         card.setAccessibleText(fullName + ", טלפון: " + client.phoneNumber());
         Tooltip.install(card, new Tooltip(fullName + "\n📞 " + client.phoneNumber() + "\n✉️ " + client.email()));
