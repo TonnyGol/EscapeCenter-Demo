@@ -1,6 +1,7 @@
 package Controllers;
 
 import App.EscapeCenterServer;
+import Entities.WorkerRole;
 import Requests.BookingDetails;
 import Requests.ClientDetails;
 import Requests.CreateBookingRequest;
@@ -15,6 +16,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
@@ -60,9 +62,14 @@ class ApiControllerTest {
     private static final String BOOKINGS_URL = "/api/bookings";
     private static final String CLIENTS_URL = "/api/clients";
     private static final String STAFF_CHECK_URL = "/api/staff/check";
+    private static final String STAFF_USER = "ApiTestStaff";
+    private static final String STAFF_PASSWORD = "staff-test-password";
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -180,6 +187,26 @@ class ApiControllerTest {
     }
 
     @Test
+    void staffCheck_rejectsWrongPasswordAndUnknownUser() throws Exception {
+        mockMvc.perform(get(STAFF_CHECK_URL).headers(basicAuth(System.getenv("APP_ADMIN_USER"), "wrong-password")))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get(STAFF_CHECK_URL).headers(basicAuth("nobody-" + UNKNOWN_ID, "any")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void staffRole_logsInButHasNoAdminAccess() throws Exception {
+        jdbcTemplate.update("INSERT INTO workers (username, password_hash, role) VALUES (?, ?, ?)",
+                STAFF_USER, passwordEncoder.encode(STAFF_PASSWORD), WorkerRole.STAFF.name());
+        try {
+            mockMvc.perform(get(STAFF_CHECK_URL).headers(basicAuth(STAFF_USER, STAFF_PASSWORD)))
+                    .andExpect(status().isForbidden());
+        } finally {
+            jdbcTemplate.update("DELETE FROM workers WHERE username = ?", STAFF_USER);
+        }
+    }
+
+    @Test
     void staffEndpoints_withoutLogin_return401() throws Exception {
         mockMvc.perform(get(staffListUrl())).andExpect(status().isUnauthorized());
         mockMvc.perform(put(BOOKINGS_URL + "/1").contentType(MediaType.APPLICATION_JSON).content(updateJson(PHONE)))
@@ -291,9 +318,13 @@ class ApiControllerTest {
     }
 
     private static MockHttpServletRequestBuilder asAdmin(MockHttpServletRequestBuilder request) {
+        return request.headers(basicAuth(System.getenv("APP_ADMIN_USER"), System.getenv("APP_ADMIN_PASSWORD")));
+    }
+
+    private static HttpHeaders basicAuth(String user, String password) {
         HttpHeaders headers = new HttpHeaders();
-        headers.setBasicAuth(System.getenv("APP_ADMIN_USER"), System.getenv("APP_ADMIN_PASSWORD"));
-        return request.headers(headers);
+        headers.setBasicAuth(user, password);
+        return headers;
     }
 
     private String createJson(LocalDateTime startAt, String firstName, int participants) throws Exception {

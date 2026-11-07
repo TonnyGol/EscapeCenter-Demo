@@ -2,6 +2,8 @@ package Entities;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -20,10 +22,17 @@ public class Worker {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String role;
+    private WorkerRole role;
 
     protected Worker() {
+    }
+
+    public Worker(String username, String passwordHash, WorkerRole role) {
+        this.username = username;
+        this.passwordHash = passwordHash;
+        this.role = role;
     }
 
     public Long getId() {
@@ -38,7 +47,11 @@ public class Worker {
         return passwordHash;
     }
 
-    public String getRole() {
+    public WorkerRole getRole() {
         return role;
+    }
+
+    public void setPasswordHash(String passwordHash) {
+        this.passwordHash = passwordHash;
     }
 }

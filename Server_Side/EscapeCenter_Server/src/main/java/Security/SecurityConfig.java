@@ -1,6 +1,7 @@
 package Security;
 
-import org.springframework.beans.factory.annotation.Value;
+import Entities.WorkerRole;
+import Repositories.WorkerRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -9,31 +10,29 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 
 @Configuration
 public class SecurityConfig {
 
-    public static final String ADMIN_ROLE = "ADMIN";
+    public static final String ADMIN_ROLE = WorkerRole.ADMIN.name();
 
-    // ------------ ADMIN USER ------------
-    // shortcut: one admin from env vars, replaced by BCrypt users from the workers table in roadmap Phase 4c.
+    // ------------ STAFF USERS ------------
     @Bean
-    public UserDetailsService userDetailsService(@Value("${app.admin.user}") String adminUser,
-                                                 @Value("${app.admin.password}") String adminPassword) {
-        return new InMemoryUserDetailsManager(
-                User.withUsername(adminUser)
-                        .password(adminPassword)
-                        .roles(ADMIN_ROLE)
-                        .build()
-        );
+    public UserDetailsService userDetailsService(WorkerRepository workers) {
+        return username -> workers.findByUsername(username)
+                .map(worker -> User.withUsername(worker.getUsername())
+                        .password(worker.getPasswordHash())
+                        .roles(worker.getRole().name())
+                        .build())
+                .orElseThrow(() -> new UsernameNotFoundException(username));
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return NoOpPasswordEncoder.getInstance(); // for testing only
+        return new BCryptPasswordEncoder();
     }
 
     // ------------ SECURITY RULES ------------
@@ -41,7 +40,8 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
-                .csrf(csrf -> csrf.disable())   // For React / external frontend
+                // Safe to disable only because the API is stateless: Basic auth is sent on every request and there are no session cookies to forge.
+                .csrf(csrf -> csrf.disable())
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
 
