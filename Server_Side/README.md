@@ -36,7 +36,7 @@ mvn javafx:run
 
 ## ⚙️ Configuration
 
-- **Server**: environment variables `DB_URL` (optional), `DB_USER`, `DB_PASS`, `APP_ADMIN_USER`, `APP_ADMIN_PASSWORD`. See `.env.example` in the repo root.
+- **Server**: environment variables `DB_URL` (optional), `MYSQL_USER`, `MYSQL_PASSWORD`, `APP_ADMIN_USER`, `APP_ADMIN_PASSWORD`. See `.env.example` in the repo root.
 - **DemoApp**: optional `src/main/resources/config.properties` with `server.url` (defaults to `http://localhost:8080`).
 
 ---
@@ -47,7 +47,7 @@ mvn javafx:run
 cd Server_Side/EscapeCenter_Server
 docker build -t escapecenter-server .
 docker run -p 8080:8080 \
-  -e DB_USER=... -e DB_PASS=... -e APP_ADMIN_USER=... -e APP_ADMIN_PASSWORD=... \
+  -e MYSQL_USER=... -e MYSQL_PASSWORD=... -e APP_ADMIN_USER=... -e APP_ADMIN_PASSWORD=... \
   -e DB_URL=jdbc:mysql://host.docker.internal:3306/escapecenter \
   escapecenter-server
 ```

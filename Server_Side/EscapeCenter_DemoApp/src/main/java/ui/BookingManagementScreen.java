@@ -1,6 +1,11 @@
 package ui;
 
 import model.Booking;
+import model.BookingDetails;
+import model.Client;
+import model.CreateBookingRequest;
+import model.Room;
+import model.UpdateBookingRequest;
 import service.ApiService;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -36,8 +41,6 @@ public class BookingManagementScreen {
     private final Map<String, Booking> bookings = new HashMap<>();
     private final Map<String, Button> slotButtons = new HashMap<>();
     private final DateTimeFormatter timeFormat = DateTimeFormatter.ofPattern("HH:mm");
-    // The year is part of the key so a slot does not clash with the same slot a year later.
-    private final DateTimeFormatter slotDateFormat = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
     private static final Map<DayOfWeek, String> HEBREW_DAYS = Map.of(
             DayOfWeek.SUNDAY, "ראשון",
@@ -49,15 +52,17 @@ public class BookingManagementScreen {
             DayOfWeek.SATURDAY, "שבת"
     );
 
-    private static final String[] ROOMS = {"אחוזת השכן", "מקדש הקאמי", "ההתערבות", "אינפיניטי", "נרקוס"};
-    private static final int APPOINTMENT_DURATION = 90;
-    private static final int BREAK_DURATION = 30;
-    private static final int APPOINTMENTS_PER_DAY = 7;
-    private static final LocalTime START_TIME = LocalTime.of(10, 0);
+    private static final int DAYS_IN_WEEK = 7;
+    private static final String ALL_ROOMS_LABEL = "הכל";
+    private static final String SAVE_FAILED_TITLE = "השמירה נכשלה";
 
     /** Polling interval in seconds for real-time sync. */
     private static final int POLL_INTERVAL_SECONDS = 10;
 
+    private List<Room> rooms = List.of();
+    private Map<String, List<LocalTime>> gameStarts = Map.of(); // room name -> start time of each game
+    private HBox roomFilter;
+    private ToggleGroup roomGroup;
     private LocalDate weekStart;
     private Label weekLabel;
     private Pane calendarContainer; // HBox for single-room, ScrollPane-wrapped GridPane for all-rooms
@@ -72,12 +77,11 @@ public class BookingManagementScreen {
     public Node createPane(Stage stage) {
         this.ownerStage = stage;
 
-        // Load bookings from server
-        bookings.clear();
-        bookings.putAll(ApiService.getInstance().loadBookings());
+        fetchSchedule().ifPresent(this::applySchedule);
 
         // Start on current week (Sunday of this week)
         weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY));
+        reloadBookings();
 
         // ---- Toolbar: Week navigation ----
         Button prevBtn = new Button("◀ שבוע קודם");
@@ -102,32 +106,28 @@ public class BookingManagementScreen {
         syncIndicator.getStyleClass().add("sync-indicator");
         syncIndicator.setTooltip(new Tooltip("סנכרון אוטומטי כל " + POLL_INTERVAL_SECONDS + " שניות"));
 
-        prevBtn.setOnAction(e -> { weekStart = weekStart.minusWeeks(1); rebuildCalendar(); });
-        nextBtn.setOnAction(e -> { weekStart = weekStart.plusWeeks(1); rebuildCalendar(); });
-        todayBtn.setOnAction(e -> { weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY)); rebuildCalendar(); });
+        prevBtn.setOnAction(e -> { weekStart = weekStart.minusWeeks(1); reloadBookings(); rebuildCalendar(); });
+        nextBtn.setOnAction(e -> { weekStart = weekStart.plusWeeks(1); reloadBookings(); rebuildCalendar(); });
+        todayBtn.setOnAction(e -> { weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY)); reloadBookings(); rebuildCalendar(); });
 
         HBox toolbar = new HBox(10, nextBtn, weekLabel, prevBtn, todayBtn, syncIndicator);
         toolbar.getStyleClass().add("booking-toolbar");
         toolbar.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
         // ---- Room Filter Tabs ----
-        HBox roomFilter = new HBox(8);
+        roomFilter = new HBox(8);
         roomFilter.getStyleClass().add("room-filter-bar");
         roomFilter.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
-        ToggleButton allRoomsTab = createRoomTab("הכל");
+        ToggleButton allRoomsTab = createRoomTab(ALL_ROOMS_LABEL);
         allRoomsTab.setSelected(true);
         allRoomsTab.getStyleClass().add("room-tab-active");
 
-        ToggleGroup roomGroup = new ToggleGroup();
+        roomGroup = new ToggleGroup();
         allRoomsTab.setToggleGroup(roomGroup);
         roomFilter.getChildren().add(allRoomsTab);
 
-        for (String room : ROOMS) {
-            ToggleButton tab = createRoomTab(room);
-            tab.setToggleGroup(roomGroup);
-            roomFilter.getChildren().add(tab);
-        }
+        addRoomTabs();
 
         roomGroup.selectedToggleProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == null) {
@@ -142,7 +142,7 @@ public class BookingManagementScreen {
             ((ToggleButton) newVal).getStyleClass().add("room-tab-active");
 
             String text = ((ToggleButton) newVal).getText();
-            selectedRoom = text.equals("הכל") ? null : text;
+            selectedRoom = text.equals(ALL_ROOMS_LABEL) ? null : text;
             rebuildCalendar();
         });
 
@@ -200,6 +200,67 @@ public class BookingManagementScreen {
         }
     }
 
+    /** If the server does not answer, the calendar keeps what it shows instead of showing an empty week. */
+    private void reloadBookings() {
+        ApiService.getInstance().loadBookings(weekStart, weekStart.plusDays(DAYS_IN_WEEK - 1)).ifPresent(fresh -> {
+            bookings.clear();
+            bookings.putAll(fresh);
+        });
+    }
+
+    private Room roomNamed(String roomName) {
+        return rooms.stream()
+                .filter(room -> room.name().equals(roomName))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    // ---- Rooms and their game times ----
+
+    private record Schedule(List<Room> rooms, Map<String, List<LocalTime>> gameStarts) {
+    }
+
+    /** Network only, so it is safe to call off the FX thread. Empty if any call failed. */
+    private Optional<Schedule> fetchSchedule() {
+        return ApiService.getInstance().loadRooms().flatMap(loaded -> {
+            Map<String, List<LocalTime>> starts = new HashMap<>();
+            for (Room room : loaded) {
+                Optional<List<LocalTime>> times = ApiService.getInstance().loadGameStartTimes(room.id(), LocalDate.now());
+                if (times.isEmpty()) {
+                    return Optional.empty();
+                }
+                starts.put(room.name(), times.get());
+            }
+            return Optional.of(new Schedule(loaded, starts));
+        });
+    }
+
+    private boolean scheduleIsComplete() {
+        return !rooms.isEmpty() && rooms.stream().allMatch(room -> gameStarts.containsKey(room.name()));
+    }
+
+    private void applySchedule(Schedule schedule) {
+        rooms = schedule.rooms();
+        gameStarts = schedule.gameStarts();
+    }
+
+    private void addRoomTabs() {
+        roomFilter.getChildren().removeIf(node -> node instanceof ToggleButton tab && !ALL_ROOMS_LABEL.equals(tab.getText()));
+        for (Room room : rooms) {
+            ToggleButton tab = createRoomTab(room.name());
+            tab.setToggleGroup(roomGroup);
+            roomFilter.getChildren().add(tab);
+        }
+    }
+
+    private void showSaveError(String reason) {
+        Alert alert = new Alert(Alert.AlertType.ERROR, reason);
+        alert.setTitle(SAVE_FAILED_TITLE);
+        alert.setHeaderText(null);
+        if (ownerStage != null) alert.initOwner(ownerStage);
+        alert.showAndWait();
+    }
+
     // ================================================================
     // Real-time sync
     // ================================================================
@@ -214,20 +275,35 @@ public class BookingManagementScreen {
     }
 
     /**
-     * Fetches latest bookings from server in background, then rebuilds
-     * the calendar on the FX thread if data changed.
+     * Fetches the latest bookings (and the room schedule, while it is still missing) in the background,
+     * then rebuilds the calendar on the FX thread if something changed. A failed request changes nothing.
      */
     private void refreshFromServer(Label syncIndicator) {
+        LocalDate requestedWeekStart = weekStart;
+        boolean scheduleMissing = !scheduleIsComplete();
         new Thread(() -> {
             try {
-                Map<String, Booking> fresh = ApiService.getInstance().loadBookings();
+                Optional<Schedule> schedule = scheduleMissing ? fetchSchedule() : Optional.empty();
+                Optional<Map<String, Booking>> fresh = ApiService.getInstance()
+                        .loadBookings(requestedWeekStart, requestedWeekStart.plusDays(DAYS_IN_WEEK - 1));
                 Platform.runLater(() -> {
-                    if (!fresh.equals(bookings)) {
+                    if (fresh.isEmpty()) {
+                        syncIndicator.setText("🔴");
+                        return;
+                    }
+                    if (!requestedWeekStart.equals(weekStart)) {
+                        return;
+                    }
+                    schedule.ifPresent(found -> {
+                        applySchedule(found);
+                        addRoomTabs();
+                    });
+                    if (schedule.isPresent() || !fresh.get().equals(bookings)) {
                         bookings.clear();
-                        bookings.putAll(fresh);
+                        bookings.putAll(fresh.get());
                         rebuildCalendar();
                         syncIndicator.setText("🟢");
-                        System.out.println("[Sync] Calendar updated with " + fresh.size() + " bookings.");
+                        System.out.println("[Sync] Calendar updated with " + fresh.get().size() + " bookings.");
                     } else {
                         syncIndicator.setText("🔄");
                     }
@@ -270,7 +346,8 @@ public class BookingManagementScreen {
         container.getStyleClass().add("calendar-container");
         container.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
-        for (String room : ROOMS) {
+        for (Room roomEntity : rooms) {
+            String room = roomEntity.name();
             VBox roomColumn = new VBox(4);
             roomColumn.getStyleClass().add("day-column");
             roomColumn.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
@@ -295,11 +372,10 @@ public class BookingManagementScreen {
                 roomColumn.getChildren().add(dayLabel);
 
                 // Time slots for this room on this day
-                for (int j = 0; j < APPOINTMENTS_PER_DAY; j++) {
-                    LocalTime start = START_TIME.plusMinutes((long) j * (APPOINTMENT_DURATION + BREAK_DURATION));
-                    LocalTime end = start.plusMinutes(APPOINTMENT_DURATION);
+                for (LocalTime start : gameStarts.getOrDefault(room, List.of())) {
+                    LocalTime end = start.plusMinutes(roomEntity.durationMinutes());
                     String timeRange = start.format(timeFormat) + "-" + end.format(timeFormat);
-                    String key = date.format(slotDateFormat) + "/" + timeRange;
+                    String key = date.atTime(start).toString();
 
                     Button slotBtn = createSlotButton(date, room, key, timeRange);
                     roomColumn.getChildren().add(slotBtn);
@@ -361,11 +437,11 @@ public class BookingManagementScreen {
         roomLabel.getStyleClass().add("room-label");
         roomBox.getChildren().add(roomLabel);
 
-        for (int j = 0; j < APPOINTMENTS_PER_DAY; j++) {
-            LocalTime start = START_TIME.plusMinutes((long) j * (APPOINTMENT_DURATION + BREAK_DURATION));
-            LocalTime end = start.plusMinutes(APPOINTMENT_DURATION);
+        int gameMinutes = roomNamed(room).durationMinutes();
+        for (LocalTime start : gameStarts.getOrDefault(room, List.of())) {
+            LocalTime end = start.plusMinutes(gameMinutes);
             String timeRange = start.format(timeFormat) + "-" + end.format(timeFormat);
-            String key = date.format(slotDateFormat) + "/" + timeRange;
+            String key = date.atTime(start).toString();
 
             Button slotBtn = createSlotButton(date, room, key, timeRange);
             roomBox.getChildren().add(slotBtn);
@@ -511,15 +587,10 @@ public class BookingManagementScreen {
                     // Immediately persist color change to server for existing bookings
                     Booking current = bookings.get(key + "/" + roomName);
                     if (current != null) {
-                        Booking updated = new Booking(
-                                current.bookingID(), current.room(),
-                                current.firstName(), current.lastName(),
-                                current.phoneNumber(), current.email(),
-                                current.experience(), current.notes(),
-                                current.participants(), selectedColor[0]
-                        );
+                        Booking updated = current.withColor(selectedColor[0]);
                         bookings.put(key + "/" + roomName, updated);
-                        ApiService.getInstance().updateBooking(updated);
+                        ApiService.getInstance().updateBooking(updated.id(),
+                                new UpdateBookingRequest(updated.client(), updated.details())).ifPresent(this::showSaveError);
                         System.out.println("[BookingScreen] Color updated and saved: " + selectedColor[0]);
                     }
                 }
@@ -528,38 +599,24 @@ public class BookingManagementScreen {
 
         dialog.setResultConverter(button -> {
             if (button.getButtonData() == ButtonBar.ButtonData.OK_DONE) {
-                // Color is saved as part of the Booking and persisted on the server
-                Booking booking = new Booking(
-                        key, roomName,
-                        nameField.getText(), lastNameField.getText(),
-                        phoneField.getText(), emailField.getText(),
-                        experienceBox.getValue(), notesArea.getText(),
-                        participantsBox.getValue(), selectedColor[0]
-                );
-                bookings.put(key + "/" + roomName, booking);
+                Client client = new Client(nameField.getText(), lastNameField.getText(),
+                        phoneField.getText(), emailField.getText());
+                BookingDetails details = new BookingDetails(participantsBox.getValue(), experienceBox.getValue(),
+                        notesArea.getText(), selectedColor[0]);
 
-                if (existing == null) {
-                    ApiService.getInstance().addBooking(booking);
-                } else {
-                    ApiService.getInstance().updateBooking(booking);
-                }
-
-                slotBtn.setText(timeRange + "\n" + booking.firstName() + " " + booking.lastName());
-                slotBtn.setStyle("-fx-background-color: " + selectedColor[0] + ";");
-                slotBtn.getStyleClass().remove("slot-available");
-                if (!slotBtn.getStyleClass().contains("slot-booked")) {
-                    slotBtn.getStyleClass().add("slot-booked");
-                }
+                Optional<String> failure = existing == null
+                        ? ApiService.getInstance().addBooking(
+                                new CreateBookingRequest(roomNamed(roomName).id(), key, client, details))
+                        : ApiService.getInstance().updateBooking(existing.id(), new UpdateBookingRequest(client, details));
+                failure.ifPresent(this::showSaveError);
+                reloadBookings();
+                rebuildCalendar();
             }
 
             if (button.getButtonData() == ButtonBar.ButtonData.OTHER && existing != null) {
-                ApiService.getInstance().deleteBooking(existing.bookingID(), existing.room());
-                bookings.remove(key + "/" + roomName);
-
-                slotBtn.setText(timeRange);
-                slotBtn.getStyleClass().removeAll("slot-booked");
-                slotBtn.getStyleClass().add("slot-available");
-                slotBtn.setStyle("");
+                ApiService.getInstance().deleteBooking(existing.id()).ifPresent(this::showSaveError);
+                reloadBookings();
+                rebuildCalendar();
             }
 
             return button;

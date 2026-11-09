@@ -1,38 +1,39 @@
 package Security;
 
-import DataBaseService.DefaultService;
+import Entities.WorkerRole;
+import Repositories.WorkerRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 
 @Configuration
 public class SecurityConfig {
 
-    private static final String ENV_ADMIN_USER = "APP_ADMIN_USER";
-    private static final String ENV_ADMIN_PASSWORD = "APP_ADMIN_PASSWORD";
+    public static final String ADMIN_ROLE = WorkerRole.ADMIN.name();
 
-    // ------------ ADMIN USER ------------
-    // shortcut: one admin from env vars, replaced by BCrypt users from the workers table in roadmap Phase 4c.
+    // ------------ STAFF USERS ------------
     @Bean
-    public UserDetailsService userDetailsService() {
-        return new InMemoryUserDetailsManager(
-                User.withUsername(DefaultService.requireEnv(ENV_ADMIN_USER))
-                        .password(DefaultService.requireEnv(ENV_ADMIN_PASSWORD))
-                        .roles("ADMIN")
-                        .build()
-        );
+    public UserDetailsService userDetailsService(WorkerRepository workers) {
+        return username -> workers.findByUsername(username)
+                .map(worker -> User.withUsername(worker.getUsername())
+                        .password(worker.getPasswordHash())
+                        .roles(worker.getRole().name())
+                        .build())
+                .orElseThrow(() -> new UsernameNotFoundException(username));
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return NoOpPasswordEncoder.getInstance(); // for testing only
+        return new BCryptPasswordEncoder();
     }
 
     // ------------ SECURITY RULES ------------
@@ -40,16 +41,21 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
         http
-                .csrf(csrf -> csrf.disable())   // For React / external frontend
+                // Safe to disable only because the API is stateless: Basic auth is sent on every request and there are no session cookies to forge.
+                .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
 
                         // Public paths (client can access)
                         // /error: Spring forwards failed requests there, so without it a public 400 or 500 shows up as 401.
-                        .requestMatchers("/bookings", "/addBooking", "/error").permitAll()
+                        .requestMatchers("/error").permitAll()
+                        // Docker healthcheck, and API docs (the API is public on GitHub anyway; staff calls still need a login).
+                        .requestMatchers("/actuator/health", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/rooms", "/api/rooms/*/availability").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/bookings").permitAll()
 
                         // ADMIN-only paths
-                        .requestMatchers("/server/**").hasRole("ADMIN")
+                        .requestMatchers("/api/**").hasRole(ADMIN_ROLE)
 
                         // Everything else - require authentication
                         .anyRequest().authenticated()

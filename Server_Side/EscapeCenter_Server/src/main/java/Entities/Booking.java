@@ -1,98 +1,119 @@
 package Entities;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "bookings")
 public class Booking {
-    // Limits match the column sizes in db/init/01-schema.sql.
-    public static final int MAX_ID_LENGTH = 50;
-    // dd.MM.yyyy/HH:mm-HH:mm. The year keeps a slot from clashing with the same slot a year later.
-    public static final String BOOKING_ID_FORMAT = "\\d{2}\\.\\d{2}\\.\\d{4}/\\d{2}:\\d{2}-\\d{2}:\\d{2}";
-    public static final int MAX_NAME_LENGTH = 50;
-    public static final int MAX_PHONE_LENGTH = 20;
-    public static final int MAX_EMAIL_LENGTH = 100;
-    public static final int MAX_EXPERIENCE_LENGTH = 50;
-    public static final int MAX_COLOR_LENGTH = 20;
-    public static final int MAX_NOTES_LENGTH = 1000;
-    public static final int MIN_PARTICIPANTS = 1;
-    public static final int MAX_PARTICIPANTS = 12;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @NotBlank @Size(max = MAX_ID_LENGTH) @Pattern(regexp = BOOKING_ID_FORMAT)
-    private final String bookingID;
-    @NotBlank @Size(max = MAX_ID_LENGTH)
-    private final String room;
-    @NotBlank @Size(max = MAX_NAME_LENGTH)
-    private final String firstName;
-    @NotBlank @Size(max = MAX_NAME_LENGTH)
-    private final String lastName;
-    @NotBlank @Size(max = MAX_PHONE_LENGTH)
-    private final String phoneNumber;
-    @Email @Size(max = MAX_EMAIL_LENGTH)
-    private final String email;
-    @Size(max = MAX_EXPERIENCE_LENGTH)
-    private final String experience;
-    @Size(max = MAX_NOTES_LENGTH)
-    private final String notes;
-    @Size(max = MAX_COLOR_LENGTH)
-    private final String color;
-    @Min(MIN_PARTICIPANTS) @Max(MAX_PARTICIPANTS)
-    private final int participants;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "client_id")
+    private Client client;
 
-    public Booking(String bookingID, String room, String firstName, String lastName, String phoneNumber, String email,
-                   String experience, String notes, int participants, String color) {
-        this.bookingID = bookingID;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "room_id")
+    private Room room;
+
+    @Column(name = "start_at", nullable = false)
+    private LocalDateTime startAt;
+
+    @Column(name = "end_at", nullable = false)
+    private LocalDateTime endAt;
+
+    @Column(nullable = false)
+    private int participants;
+
+    private String experience;
+    private String color;
+
+    @Column(length = 1000)
+    private String notes;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private BookingStatus status = BookingStatus.CONFIRMED;
+
+    protected Booking() {
+    }
+
+    public Booking(Room room, LocalDateTime startAt, LocalDateTime endAt) {
         this.room = room;
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.phoneNumber = phoneNumber;
-        this.email = email;
-        this.experience = experience;
-        this.notes = notes;
-        this.participants = participants;
-        this.color = color;
+        this.startAt = startAt;
+        this.endAt = endAt;
     }
 
-    public String getBookingID() {
-        return bookingID;
+    public Long getId() {
+        return id;
     }
 
-    public String getRoom() {
+    public BookingStatus getStatus() {
+        return status;
+    }
+
+    public Client getClient() {
+        return client;
+    }
+
+    public void setClient(Client client) {
+        this.client = client;
+    }
+
+    public Room getRoom() {
         return room;
     }
 
-    public String getFirstName() {
-        return firstName;
+    public LocalDateTime getStartAt() {
+        return startAt;
     }
 
-    public String getLastName() {
-        return lastName;
-    }
-
-    public String getPhoneNumber() {
-        return phoneNumber;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public String getExperience() {
-        return experience;
-    }
-
-    public String getNotes() {
-        return notes;
+    public LocalDateTime getEndAt() {
+        return endAt;
     }
 
     public int getParticipants() {
         return participants;
     }
 
+    public void setParticipants(int participants) {
+        this.participants = participants;
+    }
+
+    public String getExperience() {
+        return experience;
+    }
+
+    public void setExperience(String experience) {
+        this.experience = experience;
+    }
+
     public String getColor() {
         return color;
+    }
+
+    public void setColor(String color) {
+        this.color = color;
+    }
+
+    public String getNotes() {
+        return notes;
+    }
+
+    public void setNotes(String notes) {
+        this.notes = notes;
     }
 }

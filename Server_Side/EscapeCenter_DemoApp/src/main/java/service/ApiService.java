@@ -2,6 +2,10 @@ package service;
 
 import model.Booking;
 import model.Client;
+import model.CreateBookingRequest;
+import model.Room;
+import model.Slot;
+import model.UpdateBookingRequest;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -10,8 +14,14 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.Collections;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Centralized HTTP API service.
@@ -20,6 +30,16 @@ import java.util.Map;
 public final class ApiService {
 
     private static final ApiService INSTANCE = new ApiService();
+
+    private static final String STAFF_CHECK_PATH = "/api/staff/check";
+    private static final String ROOMS_PATH = "/api/rooms";
+    private static final String BOOKINGS_PATH = "/api/bookings";
+    private static final String CLIENTS_PATH = "/api/clients";
+    private static final String AUTHORIZATION_HEADER = "Authorization";
+    private static final String CONTENT_TYPE_HEADER = "Content-Type";
+    private static final String JSON_CONTENT_TYPE = "application/json";
+    private static final String PROBLEM_DETAIL_FIELD = "detail";
+    private static final String CONNECTION_ERROR_MESSAGE = "לא ניתן להתחבר לשרת.";
 
     private ApiService() {}
 
@@ -50,6 +70,12 @@ public final class ApiService {
         return status >= HttpURLConnection.HTTP_OK && status < HttpURLConnection.HTTP_MULT_CHOICE;
     }
 
+    private HttpRequest.Builder request(String path) {
+        return HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl() + path))
+                .header(AUTHORIZATION_HEADER, auth());
+    }
+
     // ---- Authentication ----
 
     /**
@@ -59,16 +85,10 @@ public final class ApiService {
         try {
             Session.getInstance().login(username, password);
 
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl() + "/server/test"))
-                    .header("Authorization", auth())
-                    .GET()
-                    .build();
-
             HttpResponse<String> response =
-                    http().send(request, HttpResponse.BodyHandlers.ofString());
+                    http().send(request(STAFF_CHECK_PATH).GET().build(), HttpResponse.BodyHandlers.ofString());
 
-            if (response.statusCode() == 200) {
+            if (response.statusCode() == HttpURLConnection.HTTP_OK) {
                 return true;
             } else {
                 Session.getInstance().logout();
@@ -81,159 +101,139 @@ public final class ApiService {
         }
     }
 
+    // ---- Rooms ----
+
+    /**
+     * Load the rooms in the order the server returns them.
+     * @return the rooms, or empty if the server did not answer
+     */
+    public Optional<List<Room>> loadRooms() {
+        return load(ROOMS_PATH, new TypeReference<List<Room>>() {});
+    }
+
+    /**
+     * Load the times of day a room starts its games. The hours are the same every day, so any date works.
+     * @return the start times in order, or empty if the server did not answer
+     */
+    public Optional<List<LocalTime>> loadGameStartTimes(Long roomId, LocalDate date) {
+        return load(ROOMS_PATH + "/" + roomId + "/availability?date=" + date, new TypeReference<List<Slot>>() {})
+                .map(slots -> slots.stream()
+                        .map(slot -> LocalDateTime.parse(slot.startAt()).toLocalTime())
+                        .toList());
+    }
+
     // ---- Bookings ----
 
     /**
-     * Load all bookings from the server.
-     * @return map of booking-key → Booking, or empty map on failure
+     * Load the bookings that start between two dates, both included.
+     * @return map of {@link Booking#slotKey()} → Booking, or empty if the server did not answer
+     * (an empty map means the week really has no bookings)
      */
-    public Map<String, Booking> loadBookings() {
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl() + "/server/bookings"))
-                    .header("Authorization", auth())
-                    .GET()
-                    .build();
-
-            HttpResponse<String> response =
-                    http().send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == 200) {
-                Map<String, Booking> result = mapper().readValue(
-                        response.body(), new TypeReference<>() {});
-                System.out.println("[ApiService] Loaded " + result.size() + " bookings.");
-                return result;
-            } else {
-                System.err.println("[ApiService] Load bookings failed: HTTP " + response.statusCode());
-            }
-        } catch (Exception e) {
-            System.err.println("[ApiService] Load bookings error: " + e.getMessage());
-        }
-        return Collections.emptyMap();
+    public Optional<Map<String, Booking>> loadBookings(LocalDate from, LocalDate to) {
+        return load(BOOKINGS_PATH + "?from=" + from + "&to=" + to, new TypeReference<List<Booking>>() {})
+                .map(found -> {
+                    Map<String, Booking> bySlot = new HashMap<>();
+                    for (Booking booking : found) {
+                        bySlot.put(booking.slotKey(), booking);
+                    }
+                    return bySlot;
+                });
     }
 
     /**
      * Add a new booking.
-     * @return true if server accepted it
+     * @return empty if the server accepted it, otherwise the reason it refused
      */
-    public boolean addBooking(Booking booking) {
-        try {
-            String json = mapper().writeValueAsString(booking);
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl() + "/addBooking"))
-                    .header("Authorization", auth())
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(json))
-                    .build();
-
-            HttpResponse<String> response =
-                    http().send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (isSuccessful(response)) {
-                System.out.println("[ApiService] Booking saved successfully!");
-                return true;
-            } else {
-                System.err.println("[ApiService] Add booking failed: HTTP "
-                        + response.statusCode() + " — " + response.body());
-            }
-        } catch (Exception e) {
-            System.err.println("[ApiService] Add booking error: " + e.getMessage());
-        }
-        return false;
+    public Optional<String> addBooking(CreateBookingRequest booking) {
+        return sendJson(request(BOOKINGS_PATH), "POST", booking);
     }
 
     /**
-     * Update an existing booking.
-     * @return true if server accepted it
+     * Update the client and details of an existing booking.
+     * @return empty if the server accepted it, otherwise the reason it refused
      */
-    public boolean updateBooking(Booking booking) {
-        try {
-            String json = mapper().writeValueAsString(booking);
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl() + "/server/updateBooking"))
-                    .header("Authorization", auth())
-                    .header("Content-Type", "application/json")
-                    .PUT(HttpRequest.BodyPublishers.ofString(json))
-                    .build();
-
-            HttpResponse<String> response =
-                    http().send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (isSuccessful(response)) {
-                System.out.println("[ApiService] Booking updated successfully!");
-                return true;
-            } else {
-                System.err.println("[ApiService] Update booking failed: HTTP "
-                        + response.statusCode() + " — " + response.body());
-            }
-        } catch (Exception e) {
-            System.err.println("[ApiService] Update booking error: " + e.getMessage());
-        }
-        return false;
+    public Optional<String> updateBooking(Long bookingId, UpdateBookingRequest booking) {
+        return sendJson(request(BOOKINGS_PATH + "/" + bookingId), "PUT", booking);
     }
 
     /**
-     * Delete a booking by ID and room name.
-     * @return true if server accepted it
+     * Delete a booking.
+     * @return empty if the server accepted it, otherwise the reason it refused
      */
-    public boolean deleteBooking(String bookingID, String roomName) {
-        try {
-            String json = String.format("{\"bookingID\":\"%s\",\"roomName\":\"%s\"}",
-                    bookingID, roomName);
-
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl() + "/server/deleteBooking"))
-                    .header("Authorization", auth())
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(json))
-                    .build();
-
-            HttpResponse<String> response =
-                    http().send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (isSuccessful(response)) {
-                System.out.println("[ApiService] Booking deleted successfully!");
-                return true;
-            } else {
-                System.err.println("[ApiService] Delete booking failed: HTTP "
-                        + response.statusCode() + " — " + response.body());
-            }
-        } catch (Exception e) {
-            System.err.println("[ApiService] Delete booking error: " + e.getMessage());
-        }
-        return false;
+    public Optional<String> deleteBooking(Long bookingId) {
+        return send(request(BOOKINGS_PATH + "/" + bookingId).DELETE().build());
     }
 
     // ---- Clients ----
 
     /**
      * Load all clients from the server (requires auth).
-     * @return map of client-key → Client, or empty map on failure
+     * @return map of phone number → Client, or empty map on failure
      */
     public Map<String, Client> loadClients() {
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl() + "/server/clients"))
-                    .header("Authorization", auth())
-                    .GET()
-                    .build();
-
-            HttpResponse<String> response =
-                    http().send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == 200) {
-                Map<String, Client> result = mapper().readValue(
-                        response.body(), new TypeReference<>() {});
-                System.out.println("[ApiService] Loaded " + result.size() + " clients.");
-                return result;
-            } else {
-                System.err.println("[ApiService] Load clients failed: HTTP " + response.statusCode());
-            }
-        } catch (Exception e) {
-            System.err.println("[ApiService] Load clients error: " + e.getMessage());
+        List<Client> found = load(CLIENTS_PATH, new TypeReference<List<Client>>() {}).orElse(List.of());
+        Map<String, Client> byPhone = new LinkedHashMap<>();
+        for (Client client : found) {
+            byPhone.put(client.phoneNumber(), client);
         }
-        return Collections.emptyMap();
+        return byPhone;
+    }
+
+    // ---- Shared request helpers ----
+
+    private <T> Optional<T> load(String path, TypeReference<T> type) {
+        try {
+            HttpResponse<String> response =
+                    http().send(request(path).GET().build(), HttpResponse.BodyHandlers.ofString());
+
+            if (isSuccessful(response)) {
+                return Optional.of(mapper().readValue(response.body(), type));
+            }
+            System.err.println("[ApiService] Load " + path + " failed: HTTP " + response.statusCode());
+        } catch (Exception e) {
+            System.err.println("[ApiService] Load " + path + " error: " + e.getMessage());
+        }
+        return Optional.empty();
+    }
+
+    private Optional<String> sendJson(HttpRequest.Builder builder, String method, Object body) {
+        try {
+            HttpRequest request = builder
+                    .header(CONTENT_TYPE_HEADER, JSON_CONTENT_TYPE)
+                    .method(method, HttpRequest.BodyPublishers.ofString(mapper().writeValueAsString(body)))
+                    .build();
+            return send(request);
+        } catch (Exception e) {
+            System.err.println("[ApiService] " + method + " error: " + e.getMessage());
+            return Optional.of(CONNECTION_ERROR_MESSAGE);
+        }
+    }
+
+    private Optional<String> send(HttpRequest request) {
+        try {
+            HttpResponse<String> response = http().send(request, HttpResponse.BodyHandlers.ofString());
+            if (isSuccessful(response)) {
+                return Optional.empty();
+            }
+            System.err.println("[ApiService] " + request.method() + " " + request.uri().getPath()
+                    + " failed: HTTP " + response.statusCode() + " — " + response.body());
+            return Optional.of(errorDetail(response));
+        } catch (Exception e) {
+            System.err.println("[ApiService] " + request.method() + " error: " + e.getMessage());
+            return Optional.of(CONNECTION_ERROR_MESSAGE);
+        }
+    }
+
+    /** The server explains errors in the "detail" field of an RFC 7807 problem; fall back to the status code. */
+    private String errorDetail(HttpResponse<String> response) {
+        try {
+            String detail = mapper().readTree(response.body()).path(PROBLEM_DETAIL_FIELD).asText();
+            if (!detail.isBlank()) {
+                return detail;
+            }
+        } catch (Exception ignored) {
+            // The body was not JSON; the status code below is all we have.
+        }
+        return "HTTP " + response.statusCode();
     }
 }

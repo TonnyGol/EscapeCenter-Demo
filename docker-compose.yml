@@ -8,7 +8,6 @@ services:
       - "127.0.0.1:3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./Server_Side/EscapeCenter_Server/db/init:/docker-entrypoint-initdb.d
     healthcheck:
       # 127.0.0.1 forces TCP. MySQL's temporary init server has networking off, so it can't pass this check early.
       test: [ "CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD" ]
@@ -16,6 +15,28 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  api:
+    build: ./Server_Side/EscapeCenter_Server
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      # ":?" stops compose with a clear message when .env lacks the value, instead of passing an empty string.
+      DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:?set MYSQL_DATABASE in .env}
+      MYSQL_USER: ${MYSQL_USER:?set MYSQL_USER in .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
+      APP_ADMIN_USER: ${APP_ADMIN_USER:?set APP_ADMIN_USER in .env}
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:?set APP_ADMIN_PASSWORD in .env}
+    ports:
+      - "8080:8080"
+
+  web:
+    build: ./Client_Side/EscapeCenter_Web
+    depends_on:
+      - api
+    ports:
+      - "80:80"
 
 volumes:
   mysql_data:

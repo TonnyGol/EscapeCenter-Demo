@@ -18,6 +18,7 @@ flowchart LR
 - Customers pick a room and a time slot on a weekly calendar and book it (Hebrew, RTL interface).
 - Staff manage bookings and clients from a desktop app.
 - REST API over MySQL, with HTTP Basic login for staff endpoints.
+- Each room has its own first game time, number of games per day and break length (columns on the `rooms` table), so rooms can run different hours.
 
 ## Tech stack
 
@@ -35,10 +36,10 @@ Needs Docker, Java 21, Maven and Node.js.
 
 ```bash
 cp .env.example .env          # then fill in the passwords
-docker compose up -d          # MySQL, schema is created on first start
+docker compose up -d          # MySQL; the API creates the schema (Flyway) when it starts
 ```
 
-Export `DB_USER`, `DB_PASS`, `APP_ADMIN_USER` and `APP_ADMIN_PASSWORD` in your shell (values are explained in `.env.example`), then:
+Export `MYSQL_USER`, `MYSQL_PASSWORD`, `APP_ADMIN_USER` and `APP_ADMIN_PASSWORD` in your shell (values are explained in `.env.example`), then:
 
 ```bash
 cd Server_Side/EscapeCenter_Server && mvn spring-boot:run    # API on :8080
@@ -54,13 +55,16 @@ One-command start (`docker compose up` for the whole stack) arrives with the CI/
 
 | Method | Path | Access | Purpose |
 |--------|------|--------|---------|
-| GET | `/bookings` | public | List taken slots (keys only, no personal data) |
-| POST | `/addBooking` | public | Create a booking |
-| PUT | `/server/updateBooking` | staff | Update a booking |
-| POST | `/server/deleteBooking` | staff | Delete a booking |
-| GET | `/server/bookings` | staff | List all bookings with details |
-| GET | `/server/clients` | staff | List all clients |
-| GET | `/server/test` | staff | Check the staff login |
+| GET | `/api/rooms` | public | List rooms |
+| GET | `/api/rooms/{id}/availability?date=YYYY-MM-DD` | public | Slots of a room on a day, free or taken |
+| POST | `/api/bookings` | public | Create a booking (400 invalid, 409 slot taken) |
+| GET | `/api/bookings?from&to&roomId` | staff | List bookings in a date range |
+| PUT | `/api/bookings/{id}` | staff | Update client and booking details |
+| DELETE | `/api/bookings/{id}` | staff | Delete a booking |
+| GET | `/api/clients?query=` | staff | Search clients by name or phone |
+| GET | `/api/staff/check` | staff | Check the staff login |
+
+Errors come back as [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807) `ProblemDetail` JSON.
 
 Swagger UI is planned (see roadmap).
 
