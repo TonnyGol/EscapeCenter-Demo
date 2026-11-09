@@ -25,6 +25,8 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final Logger LOG = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private static final String SLOT_TAKEN_MESSAGE = "This slot is already booked.";
+    private static final String SLOT_CONSTRAINT_NAME = "uq_bookings_room_start";
+    private static final String TRY_AGAIN_MESSAGE = "The booking could not be saved. Please try again.";
     private static final String DATABASE_ERROR_MESSAGE = "Database error. Please try again later.";
     private static final String FIELD_ERROR_SEPARATOR = "; ";
 
@@ -40,9 +42,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     // The unique (room, start) constraint is the last line of defence against double booking.
+    // Other constraints, such as two requests creating the same new client at once, are not a taken slot.
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ProblemDetail handleSlotTaken() {
-        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, SLOT_TAKEN_MESSAGE);
+    public ProblemDetail handleIntegrityViolation(DataIntegrityViolationException exception) {
+        String cause = exception.getMostSpecificCause().getMessage();
+        if (cause != null && cause.contains(SLOT_CONSTRAINT_NAME)) {
+            return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, SLOT_TAKEN_MESSAGE);
+        }
+        LOG.warn("Constraint violation that is not a taken slot", exception);
+        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, TRY_AGAIN_MESSAGE);
     }
 
     @ExceptionHandler(DataAccessException.class)

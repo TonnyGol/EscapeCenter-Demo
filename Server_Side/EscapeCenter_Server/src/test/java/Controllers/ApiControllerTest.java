@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,11 +23,19 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
 import static org.hamcrest.Matchers.not;
+import static Logging.RequestIdFilter.REQUEST_ID_HEADER;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -36,7 +45,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 // shortcut: runs against the Docker MySQL (`docker compose up -d`) with DB_* and APP_ADMIN_* set; roadmap Phase 5 moves it to Testcontainers.
-@SpringBootTest(classes = EscapeCenterServer.class)
+// The test dates are in 2099, so the booking horizon is widened and the rate limits are lifted (RateLimitFilterTest covers them).
+@SpringBootTest(classes = EscapeCenterServer.class, properties = {
+        "app.booking.max-days-ahead=40000",
+        "app.rate-limit.bookings-per-minute=100000",
+        "app.rate-limit.authenticated-per-minute=100000"})
 @AutoConfigureMockMvc
 class ApiControllerTest {
 
@@ -62,6 +75,9 @@ class ApiControllerTest {
     private static final String BOOKINGS_URL = "/api/bookings";
     private static final String CLIENTS_URL = "/api/clients";
     private static final String STAFF_CHECK_URL = "/api/staff/check";
+    private static final LocalDateTime BEYOND_HORIZON_START = LocalDateTime.of(2200, 1, 1, 10, 0);
+    private static final int RACING_REQUESTS = 10;
+    private static final String RACE_PHONE_PREFIX = "054-000000";
     private static final String STAFF_USER = "ApiTestStaff";
     private static final String STAFF_PASSWORD = "staff-test-password";
 
@@ -184,6 +200,57 @@ class ApiControllerTest {
     void staffCheck_needsALogin() throws Exception {
         mockMvc.perform(get(STAFF_CHECK_URL)).andExpect(status().isUnauthorized());
         mockMvc.perform(asAdmin(get(STAFF_CHECK_URL))).andExpect(status().isOk());
+    }
+
+    @Test
+    void customerBooking_beyondTheHorizon_isRefused() throws Exception {
+        mockMvc.perform(jsonPost(BOOKINGS_URL, createJson(BEYOND_HORIZON_START, CLIENT_FIRST_NAME, 2)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail", containsString("too far ahead")));
+    }
+
+    @Test
+    void staffList_refusesAnUpsideDownOrHugeRange() throws Exception {
+        mockMvc.perform(asAdmin(get(BOOKINGS_URL).param("from", NEXT_WEEK).param("to", DAY)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(asAdmin(get(BOOKINGS_URL).param("from", DAY).param("to", "2101-01-01")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void sameSlotBookedByManyAtOnce_exactlyOneWins() throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(RACING_REQUESTS);
+        CountDownLatch go = new CountDownLatch(1);
+        List<Future<Integer>> results = new ArrayList<>();
+        for (int racer = 0; racer < RACING_REQUESTS; racer++) {
+            String body = createJson(roomId, FIRST_SLOT, CLIENT_FIRST_NAME, RACE_PHONE_PREFIX + racer, 2);
+            results.add(pool.submit(() -> {
+                go.await();
+                return mockMvc.perform(jsonPost(BOOKINGS_URL, body)).andReturn().getResponse().getStatus();
+            }));
+        }
+        go.countDown();
+        int created = 0;
+        int conflicts = 0;
+        for (Future<Integer> result : results) {
+            int status = result.get();
+            if (status == HttpStatus.CREATED.value()) created++;
+            if (status == HttpStatus.CONFLICT.value()) conflicts++;
+        }
+        pool.shutdown();
+
+        org.junit.jupiter.api.Assertions.assertEquals(1, created);
+        org.junit.jupiter.api.Assertions.assertEquals(RACING_REQUESTS - 1, conflicts);
+    }
+
+    @Test
+    void requestId_isKeptWhenPlain_andReplacedWhenUnsafe() throws Exception {
+        mockMvc.perform(get(ROOMS_URL).header(REQUEST_ID_HEADER, "abc-123"))
+                .andExpect(header().string(REQUEST_ID_HEADER, "abc-123"));
+        mockMvc.perform(get(ROOMS_URL).header(REQUEST_ID_HEADER, "bad id\tERROR forged"))
+                .andExpect(header().string(REQUEST_ID_HEADER, not("bad id\tERROR forged")))
+                .andExpect(header().exists(REQUEST_ID_HEADER));
+        mockMvc.perform(get(ROOMS_URL)).andExpect(header().exists(REQUEST_ID_HEADER));
     }
 
     @Test

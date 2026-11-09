@@ -11,6 +11,7 @@ import Requests.ClientDetails;
 import Requests.CreateBookingRequest;
 import Requests.UpdateBookingRequest;
 import Responses.StaffBookingResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -26,14 +28,19 @@ public class BookingService {
     private static final String OFF_GRID_START_MESSAGE = "startAt: not a game start time of this room.";
     private static final String PAST_START_MESSAGE = "startAt: must be a future date and time.";
     private static final String SLOT_TAKEN_MESSAGE = "This slot is already booked.";
+    private static final String TOO_FAR_AHEAD_MESSAGE = "startAt: too far ahead, bookings open at most %d days in advance.";
+    private static final String BAD_RANGE_MESSAGE = "from, to: 'to' must not be before 'from' and the range is at most %d days.";
+    private static final long MAX_RANGE_DAYS = 366;
     private static final String ROOM_TOO_SMALL_MESSAGE = "booking.participants: this room holds at most %d people.";
 
     private final BookingRepository bookingRepository;
     private final ClientRepository clientRepository;
     private final RoomRepository roomRepository;
+    private final int maxDaysAhead;
 
     public BookingService(BookingRepository bookingRepository, ClientRepository clientRepository,
-                          RoomRepository roomRepository) {
+                          RoomRepository roomRepository, @Value("${app.booking.max-days-ahead}") int maxDaysAhead) {
+        this.maxDaysAhead = maxDaysAhead;
         this.bookingRepository = bookingRepository;
         this.clientRepository = clientRepository;
         this.roomRepository = roomRepository;
@@ -49,8 +56,8 @@ public class BookingService {
     public void createBooking(CreateBookingRequest request, boolean bookedByStaff) {
         Room room = roomRepository.findById(request.roomId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, RoomService.ROOM_NOT_FOUND_MESSAGE));
-        if (!bookedByStaff && !request.startAt().isAfter(LocalDateTime.now())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAST_START_MESSAGE);
+        if (!bookedByStaff) {
+            requireStartInCustomerWindow(request.startAt());
         }
         if (!SlotSchedule.startTimes(request.startAt().toLocalDate(), room).contains(request.startAt())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, OFF_GRID_START_MESSAGE);
@@ -67,6 +74,9 @@ public class BookingService {
 
     @Transactional(readOnly = true)
     public List<StaffBookingResponse> getBookings(LocalDate from, LocalDate to, Long roomId) {
+        if (to.isBefore(from) || ChronoUnit.DAYS.between(from, to) > MAX_RANGE_DAYS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, BAD_RANGE_MESSAGE.formatted(MAX_RANGE_DAYS));
+        }
         return bookingRepository.findInRange(from.atStartOfDay(), to.plusDays(1).atStartOfDay(), roomId).stream()
                 .map(StaffBookingResponse::from)
                 .toList();
@@ -106,6 +116,17 @@ public class BookingService {
         booking.setExperience(details.experience());
         booking.setColor(details.color());
         booking.setNotes(details.notes());
+    }
+
+    // The horizon stops a script from filling the calendar of every room for years ahead.
+    private void requireStartInCustomerWindow(LocalDateTime startAt) {
+        LocalDateTime now = LocalDateTime.now();
+        if (!startAt.isAfter(now)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, PAST_START_MESSAGE);
+        }
+        if (startAt.isAfter(now.plusDays(maxDaysAhead))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, TOO_FAR_AHEAD_MESSAGE.formatted(maxDaysAhead));
+        }
     }
 
     private static void requireRoomHolds(Room room, int participants) {

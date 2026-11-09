@@ -4,6 +4,7 @@ import Controllers.ApiController;
 import DataBaseService.BookingService;
 import Exceptions.GlobalExceptionHandler;
 import Entities.Booking;
+import Logging.RequestIdFilter;
 import Repositories.BookingRepository;
 import Security.SecurityConfig;
 import org.springframework.boot.SpringApplication;
@@ -15,7 +16,7 @@ import java.util.List;
 
 // This class is not in a parent package of the controllers, services, entities and configs, so Spring must be told where they are.
 // Add a class here when a new package gets Spring beans (CorsConfig shares the package of SecurityConfig).
-@SpringBootApplication(scanBasePackageClasses = {ApiController.class, BookingService.class, GlobalExceptionHandler.class, SecurityConfig.class})
+@SpringBootApplication(scanBasePackageClasses = {ApiController.class, BookingService.class, GlobalExceptionHandler.class, SecurityConfig.class, RequestIdFilter.class})
 @EntityScan(basePackageClasses = Booking.class)
 @EnableJpaRepositories(basePackageClasses = BookingRepository.class)
 public class EscapeCenterServer {

@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -41,13 +42,15 @@ public class SecurityConfig {
 
         http
                 // Safe to disable only because the API is stateless: Basic auth is sent on every request and there are no session cookies to forge.
-                .csrf(csrf -> csrf.disable())
+                .csrf(AbstractHttpConfigurer::disable)
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
 
                         // Public paths (client can access)
                         // /error: Spring forwards failed requests there, so without it a public 400 or 500 shows up as 401.
                         .requestMatchers("/error").permitAll()
+                        // Docker healthcheck, and API docs (the API is public on GitHub anyway; staff calls still need a login).
+                        .requestMatchers("/actuator/health", "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/rooms", "/api/rooms/*/availability").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/bookings").permitAll()
 
