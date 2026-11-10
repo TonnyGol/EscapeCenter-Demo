@@ -47,7 +47,7 @@ cd Client_Side/EscapeCenter_Web && npm install && npm run dev # site on http://l
 cd Server_Side/EscapeCenter_DemoApp && mvn javafx:run         # staff app (optional)
 ```
 
-Until Phase 5 (Testcontainers), `mvn test` needs the Docker MySQL running and the four variables above set.
+`mvn verify` starts its own throwaway MySQL with Testcontainers, so it only needs Docker running (no database or environment variables).
 
 One-command start (`docker compose up` for the whole stack) arrives with the CI/CD phase.
 

@@ -3,6 +3,7 @@ package Security;
 import App.EscapeCenterServer;
 import Entities.Worker;
 import Repositories.WorkerRepository;
+import Support.MySqlIntegrationTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,9 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-// shortcut: runs against the Docker MySQL like ApiControllerTest; roadmap Phase 5 moves it to Testcontainers.
 @SpringBootTest(classes = EscapeCenterServer.class)
-class AdminSeederTest {
+class AdminSeederTest extends MySqlIntegrationTest {
 
     private static final String SEEDED_USER = "SeederTestAdmin";
     private static final String FIRST_PASSWORD = "first-password";

@@ -8,6 +8,9 @@ const MISSING_DETAILS_MESSAGE = "יש למלא שם פרטי, שם משפחה ו
 const SAVE_FAILED_MESSAGE = "שגיאה בשמירת ההזמנה.";
 const SLOT_TAKEN_MESSAGE = "המשבצת הזו כבר נתפסה, בחרו שעה אחרת.";
 const BOOKING_SAVED_MESSAGE = "הזמנה נשמרה בהצלחה!";
+const TRY_AGAIN_MESSAGE = "ההזמנה לא נשמרה, נסו שוב.";
+// Sent by the API in the "code" field of a 409 that is not a taken slot.
+const TRY_AGAIN_CODE = "TRY_AGAIN";
 const HTTP_BAD_REQUEST = 400;
 const HTTP_CONFLICT = 409;
 const BOOKING_COLOR = "#fecaca";
@@ -110,6 +113,10 @@ const Booking = () => {
             })
             .catch(err => {
                 const status = err.response?.status;
+                if (status === HTTP_CONFLICT && err.response.data?.code === TRY_AGAIN_CODE) {
+                    alert(TRY_AGAIN_MESSAGE);
+                    return;
+                }
                 if (status === HTTP_CONFLICT) {
                     alert(SLOT_TAKEN_MESSAGE);
                     setSelectedSlot(null);

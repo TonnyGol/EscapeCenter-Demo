@@ -73,6 +73,7 @@ public final class ApiService {
     private HttpRequest.Builder request(String path) {
         return HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl() + path))
+                .timeout(Session.getInstance().getRequestTimeout())
                 .header(AUTHORIZATION_HEADER, auth());
     }
 

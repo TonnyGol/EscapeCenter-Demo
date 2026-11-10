@@ -8,6 +8,7 @@ import java.sql.SQLException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class GlobalExceptionHandlerTest {
 
@@ -22,6 +23,9 @@ class GlobalExceptionHandlerTest {
         assertEquals(CONFLICT, slot.getStatus());
         assertEquals(CONFLICT, phone.getStatus());
         assertNotEquals(slot.getDetail(), phone.getDetail());
+        assertNull(slot.getProperties());
+        assertEquals(GlobalExceptionHandler.TRY_AGAIN_CODE,
+                phone.getProperties().get(GlobalExceptionHandler.ERROR_CODE_PROPERTY));
     }
 
     private static DataIntegrityViolationException violation(String databaseMessage) {

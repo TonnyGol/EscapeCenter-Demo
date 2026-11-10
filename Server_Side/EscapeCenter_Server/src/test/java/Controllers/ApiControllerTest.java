@@ -6,6 +6,7 @@ import Requests.BookingDetails;
 import Requests.ClientDetails;
 import Requests.CreateBookingRequest;
 import Requests.UpdateBookingRequest;
+import Support.MySqlIntegrationTest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasItems;
@@ -44,22 +46,22 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// shortcut: runs against the Docker MySQL (`docker compose up -d`) with DB_* and APP_ADMIN_* set; roadmap Phase 5 moves it to Testcontainers.
 // The test dates are in 2099, so the booking horizon is widened and the rate limits are lifted (RateLimitFilterTest covers them).
 @SpringBootTest(classes = EscapeCenterServer.class, properties = {
         "app.booking.max-days-ahead=40000",
         "app.rate-limit.bookings-per-minute=100000",
         "app.rate-limit.authenticated-per-minute=100000"})
 @AutoConfigureMockMvc
-class ApiControllerTest {
+class ApiControllerTest extends MySqlIntegrationTest {
 
     private static final String ROOM = "ApiTestRoom";
     private static final int ROOM_CAPACITY = 4;
     private static final int ROOM_DURATION_MINUTES = 90;
     private static final int GAMES_PER_DAY = 7;
     private static final String CLIENT_FIRST_NAME = "ApiFirst";
-    private static final String PHONE = "052-0000000";
-    private static final String CHANGED_PHONE = "053-1111111";
+    private static final String PHONE = "0520000000";
+    private static final String CHANGED_PHONE = "0531111111";
+    private static final String PHONE_WITH_DASHES = "052-000 0000";
     private static final String DAY = "2099-01-01";
     private static final LocalDateTime FIRST_SLOT = LocalDateTime.of(2099, 1, 1, 10, 0);
     private static final LocalDateTime SECOND_SLOT = LocalDateTime.of(2099, 1, 1, 12, 0);
@@ -77,7 +79,7 @@ class ApiControllerTest {
     private static final String STAFF_CHECK_URL = "/api/staff/check";
     private static final LocalDateTime BEYOND_HORIZON_START = LocalDateTime.of(2200, 1, 1, 10, 0);
     private static final int RACING_REQUESTS = 10;
-    private static final String RACE_PHONE_PREFIX = "054-000000";
+    private static final String RACE_PHONE_PREFIX = "054000000";
     private static final String STAFF_USER = "ApiTestStaff";
     private static final String STAFF_PASSWORD = "staff-test-password";
 
@@ -255,7 +257,7 @@ class ApiControllerTest {
 
     @Test
     void staffCheck_rejectsWrongPasswordAndUnknownUser() throws Exception {
-        mockMvc.perform(get(STAFF_CHECK_URL).headers(basicAuth(System.getenv("APP_ADMIN_USER"), "wrong-password")))
+        mockMvc.perform(get(STAFF_CHECK_URL).headers(basicAuth(ADMIN_USER, "wrong-password")))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(get(STAFF_CHECK_URL).headers(basicAuth("nobody-" + UNKNOWN_ID, "any")))
                 .andExpect(status().isUnauthorized());
@@ -363,6 +365,15 @@ class ApiControllerTest {
                 .andExpect(jsonPath("$[?(@.firstName == '" + CLIENT_FIRST_NAME + "')].phoneNumber", hasItems(PHONE, CHANGED_PHONE)));
     }
 
+    @Test
+    void clients_withTheSamePhoneWrittenTwoWays_areOneClient() throws Exception {
+        mockMvc.perform(jsonPost(BOOKINGS_URL, createJson(roomId, FIRST_SLOT, CLIENT_FIRST_NAME, PHONE, 2))).andExpect(status().isCreated());
+        mockMvc.perform(jsonPost(BOOKINGS_URL, createJson(roomId, SECOND_SLOT, CLIENT_FIRST_NAME, PHONE_WITH_DASHES, 2))).andExpect(status().isCreated());
+
+        mockMvc.perform(asAdmin(get(CLIENTS_URL + "?query=" + CLIENT_FIRST_NAME)))
+                .andExpect(jsonPath("$[?(@.firstName == '" + CLIENT_FIRST_NAME + "')].phoneNumber", contains(PHONE)));
+    }
+
     private String availabilityUrl() {
         return ROOMS_URL + "/" + roomId + "/availability?date=" + DAY;
     }
@@ -385,7 +396,7 @@ class ApiControllerTest {
     }
 
     private static MockHttpServletRequestBuilder asAdmin(MockHttpServletRequestBuilder request) {
-        return request.headers(basicAuth(System.getenv("APP_ADMIN_USER"), System.getenv("APP_ADMIN_PASSWORD")));
+        return request.headers(basicAuth(ADMIN_USER, ADMIN_PASSWORD));
     }
 
     private static HttpHeaders basicAuth(String user, String password) {
