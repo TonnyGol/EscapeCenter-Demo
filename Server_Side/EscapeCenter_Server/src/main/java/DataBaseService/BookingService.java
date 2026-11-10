@@ -89,7 +89,10 @@ public class BookingService {
     public void updateBooking(Long id, UpdateBookingRequest request) {
         Booking booking = findBookingById(id);
         requireRoomHolds(booking.getRoom(), request.booking().participants());
-        booking.setClient(saveClientDetails(request.client()));
+        // Same phone: staff are editing this client. Another phone: the booking moves to that client, whose details stay as they are.
+        Client current = booking.getClient();
+        boolean phoneChanged = current == null || !current.getPhoneNumber().equals(normalizedPhone(request.client().phoneNumber()));
+        booking.setClient(phoneChanged ? findOrCreateClient(request.client()) : saveClientDetails(request.client()));
         copyDetails(booking, request.booking());
     }
 
