@@ -6,6 +6,7 @@ import Requests.BookingDetails;
 import Requests.ClientDetails;
 import Requests.CreateBookingRequest;
 import Requests.UpdateBookingRequest;
+import Support.MySqlIntegrationTest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,14 +45,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// shortcut: runs against the Docker MySQL (`docker compose up -d`) with DB_* and APP_ADMIN_* set; roadmap Phase 5 moves it to Testcontainers.
 // The test dates are in 2099, so the booking horizon is widened and the rate limits are lifted (RateLimitFilterTest covers them).
 @SpringBootTest(classes = EscapeCenterServer.class, properties = {
         "app.booking.max-days-ahead=40000",
         "app.rate-limit.bookings-per-minute=100000",
         "app.rate-limit.authenticated-per-minute=100000"})
 @AutoConfigureMockMvc
-class ApiControllerTest {
+class ApiControllerTest extends MySqlIntegrationTest {
 
     private static final String ROOM = "ApiTestRoom";
     private static final int ROOM_CAPACITY = 4;
@@ -255,7 +255,7 @@ class ApiControllerTest {
 
     @Test
     void staffCheck_rejectsWrongPasswordAndUnknownUser() throws Exception {
-        mockMvc.perform(get(STAFF_CHECK_URL).headers(basicAuth(System.getenv("APP_ADMIN_USER"), "wrong-password")))
+        mockMvc.perform(get(STAFF_CHECK_URL).headers(basicAuth(ADMIN_USER, "wrong-password")))
                 .andExpect(status().isUnauthorized());
         mockMvc.perform(get(STAFF_CHECK_URL).headers(basicAuth("nobody-" + UNKNOWN_ID, "any")))
                 .andExpect(status().isUnauthorized());
@@ -385,7 +385,7 @@ class ApiControllerTest {
     }
 
     private static MockHttpServletRequestBuilder asAdmin(MockHttpServletRequestBuilder request) {
-        return request.headers(basicAuth(System.getenv("APP_ADMIN_USER"), System.getenv("APP_ADMIN_PASSWORD")));
+        return request.headers(basicAuth(ADMIN_USER, ADMIN_PASSWORD));
     }
 
     private static HttpHeaders basicAuth(String user, String password) {
