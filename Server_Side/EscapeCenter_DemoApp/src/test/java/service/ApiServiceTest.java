@@ -19,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,6 +34,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ApiServiceTest {
     private static final String CONNECTION_ERROR_MESSAGE = "לא ניתן להתחבר לשרת.";
     private static final String SERVER_URL_PROPERTY = "server.url";
+    private static final String REQUEST_TIMEOUT_PROPERTY = "request.timeout.seconds";
+    private static final String SLOW_RESPONSE_PROPERTY_VALUE = "1";
+    private static final long SLOW_SERVER_DELAY_MILLIS = 3_000;
     private static final String UNREACHABLE_SERVER_URL = "http://localhost:1";
     private static final String DETAIL_REASON = "This slot is already booked.";
     private static final String PROBLEM_JSON = "{\"status\":409,\"detail\":\"" + DETAIL_REASON + "\"}";
@@ -70,6 +74,7 @@ class ApiServiceTest {
 
     private final ApiService api = ApiService.getInstance();
     private final Map<String, Reply> replies = new HashMap<>();
+    private final Set<String> slowAnswers = new HashSet<>();
     private volatile ReceivedRequest lastRequest;
     private HttpServer server;
 
@@ -78,13 +83,14 @@ class ApiServiceTest {
         server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
         server.createContext("/", this::answer);
         server.start();
-        pointSessionAt("http://localhost:" + server.getAddress().getPort());
+        setSessionConfig(SERVER_URL_PROPERTY, "http://localhost:" + server.getAddress().getPort());
         Session.getInstance().login("admin", "secret");
     }
 
     @AfterEach
-    void stopServer() {
+    void stopServer() throws Exception {
         server.stop(0);
+        setSessionConfig(REQUEST_TIMEOUT_PROPERTY, null);
         Session.getInstance().logout();
     }
 
@@ -94,6 +100,9 @@ class ApiServiceTest {
                 exchange.getRequestHeaders().getFirst("Authorization"),
                 exchange.getRequestHeaders().getFirst("Content-Type"),
                 new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+        if (slowAnswers.contains(methodAndPath)) {
+            sleepLikeAStalledServer();
+        }
         Reply reply = replies.getOrDefault(methodAndPath, new Reply(404, ""));
         byte[] body = reply.body().getBytes(StandardCharsets.UTF_8);
         exchange.sendResponseHeaders(reply.status(), body.length == 0 ? -1 : body.length);
@@ -103,11 +112,24 @@ class ApiServiceTest {
         exchange.close();
     }
 
+    private static void sleepLikeAStalledServer() {
+        try {
+            Thread.sleep(SLOW_SERVER_DELAY_MILLIS);
+        } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     // Session reads its URL from config.properties, which a test must not change; the field is set directly instead.
-    private static void pointSessionAt(String url) throws Exception {
-        Field config = Session.class.getDeclaredField("config");
-        config.setAccessible(true);
-        ((Properties) config.get(Session.getInstance())).setProperty(SERVER_URL_PROPERTY, url);
+    private static void setSessionConfig(String key, String value) throws Exception {
+        Field field = Session.class.getDeclaredField("config");
+        field.setAccessible(true);
+        Properties config = (Properties) field.get(Session.getInstance());
+        if (value == null) {
+            config.remove(key);
+        } else {
+            config.setProperty(key, value);
+        }
     }
 
     private void serverAnswers(String methodAndPath, int status, String body) {
@@ -137,7 +159,7 @@ class ApiServiceTest {
 
     @Test
     void login_failsWhenTheServerIsDown() throws Exception {
-        pointSessionAt(UNREACHABLE_SERVER_URL);
+        setSessionConfig(SERVER_URL_PROPERTY, UNREACHABLE_SERVER_URL);
 
         assertFalse(api.login("admin", "secret"));
         assertFalse(Session.getInstance().isAuthenticated());
@@ -169,8 +191,26 @@ class ApiServiceTest {
     }
 
     @Test
+    void aServerThatStopsAnswering_endsInAFailureInsteadOfWaitingForever() throws Exception {
+        setSessionConfig(REQUEST_TIMEOUT_PROPERTY, SLOW_RESPONSE_PROPERTY_VALUE);
+        serverAnswers(ROOMS, 200, ROOMS_JSON);
+        slowAnswers.add(ROOMS);
+        serverAnswers(CREATE_BOOKING, 201, "");
+        slowAnswers.add(CREATE_BOOKING);
+
+        long startedAt = System.nanoTime();
+        Optional<List<Room>> rooms = api.loadRooms();
+        Optional<String> refusal = api.addBooking(NEW_BOOKING);
+        long waitedMillis = (System.nanoTime() - startedAt) / 1_000_000;
+
+        assertTrue(rooms.isEmpty());
+        assertEquals(CONNECTION_ERROR_MESSAGE, refusal.orElseThrow());
+        assertTrue(waitedMillis < 2 * SLOW_SERVER_DELAY_MILLIS, "waited " + waitedMillis + " ms");
+    }
+
+    @Test
     void loadRooms_isEmptyWhenTheServerIsDown() throws Exception {
-        pointSessionAt(UNREACHABLE_SERVER_URL);
+        setSessionConfig(SERVER_URL_PROPERTY, UNREACHABLE_SERVER_URL);
 
         assertTrue(api.loadRooms().isEmpty());
     }
@@ -249,7 +289,7 @@ class ApiServiceTest {
 
     @Test
     void addBooking_reportsAConnectionError_whenTheServerIsDown() throws Exception {
-        pointSessionAt(UNREACHABLE_SERVER_URL);
+        setSessionConfig(SERVER_URL_PROPERTY, UNREACHABLE_SERVER_URL);
 
         assertEquals(CONNECTION_ERROR_MESSAGE, api.addBooking(NEW_BOOKING).orElseThrow());
     }

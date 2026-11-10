@@ -11,6 +11,8 @@ const DAYS_IN_WEEK = 7
 const MISSING_DETAILS_MESSAGE = 'יש למלא שם פרטי, שם משפחה וטלפון.'
 const SLOT_TAKEN_MESSAGE = 'המשבצת הזו כבר נתפסה, בחרו שעה אחרת.'
 const BOOKING_SAVED_MESSAGE = 'הזמנה נשמרה בהצלחה!'
+const TRY_AGAIN_MESSAGE = 'ההזמנה לא נשמרה, נסו שוב.'
+const TRY_AGAIN_CODE = 'TRY_AGAIN'
 const SERVER_REASON = 'client.firstName: must not be blank'
 const ROOM = { id: 1, name: 'Vault', capacity: 4, durationMinutes: 60 }
 const FREE_SLOT = { startAt: '2099-01-01T10:00:00', endAt: '2099-01-01T11:00:00', available: true }
@@ -25,7 +27,7 @@ const FIRST_NAME = 'Dana'
 const LAST_NAME = 'Levi'
 const PHONE = '0501234567'
 
-const rejectedWith = status => ({ response: { status, data: { detail: SERVER_REASON } } })
+const rejectedWith = (status, extraData = {}) => ({ response: { status, data: { detail: SERVER_REASON, ...extraData } } })
 
 const showBookingPage = () => render(<MemoryRouter><Booking /></MemoryRouter>)
 
@@ -115,6 +117,21 @@ describe('Booking page', () => {
         await user.click(screen.getByRole('button', { name: SUBMIT_LABEL }))
 
         await waitFor(() => expect(window.alert).toHaveBeenCalledWith(expect.stringContaining(SERVER_REASON)))
+    })
+
+    it('asks the customer to try again on a 409 that is not a taken slot, and keeps the form', async () => {
+        axios.post.mockRejectedValue(rejectedWith(409, { code: TRY_AGAIN_CODE }))
+        const user = userEvent.setup()
+        showBookingPage()
+        await openFirstFreeSlot(user)
+        await fillClientDetails(user)
+        const callsBeforeSubmit = availabilityCalls()
+
+        await user.click(screen.getByRole('button', { name: SUBMIT_LABEL }))
+
+        await waitFor(() => expect(window.alert).toHaveBeenCalledWith(TRY_AGAIN_MESSAGE))
+        expect(availabilityCalls()).toBe(callsBeforeSubmit)
+        expect(screen.getByRole('button', { name: SUBMIT_LABEL })).toBeInTheDocument()
     })
 
     it('tells the customer the slot is taken on 409 and reloads the week', async () => {

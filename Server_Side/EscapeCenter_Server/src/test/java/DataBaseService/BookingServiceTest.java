@@ -43,6 +43,7 @@ class BookingServiceTest {
     private static final int GAMES_PER_DAY = 4;
     private static final LocalTime FIRST_GAME_START = LocalTime.of(10, 0);
     private static final String PHONE = "0501234567";
+    private static final String PHONE_WITH_PUNCTUATION = "050-123 4567";
 
     @Mock
     private BookingRepository bookingRepository;
@@ -193,6 +194,31 @@ class BookingServiceTest {
 
         assertEquals("Original", existing.getFirstName());
         verify(clientRepository, never()).save(any());
+    }
+
+    @Test
+    void createBooking_samePhoneWrittenDifferently_findsTheSameClient() {
+        stubRoom();
+        Client existing = new Client(PHONE);
+        when(clientRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.of(existing));
+        ClientDetails formattedPhone = new ClientDetails("Dana", "Levi", PHONE_WITH_PUNCTUATION, "dana@example.com");
+
+        bookingService.createBooking(new CreateBookingRequest(ROOM_ID, firstGameOn(LocalDate.now().plusDays(1)),
+                formattedPhone, bookingDetails(4)), false);
+
+        ArgumentCaptor<Booking> saved = ArgumentCaptor.forClass(Booking.class);
+        verify(bookingRepository).save(saved.capture());
+        assertEquals(existing, saved.getValue().getClient());
+    }
+
+    @Test
+    void createBooking_phoneWithoutDigitsIs400() {
+        stubRoom();
+        ClientDetails noDigits = new ClientDetails("Dana", "Levi", "---", "dana@example.com");
+
+        assertStatus(HttpStatus.BAD_REQUEST, () -> bookingService.createBooking(
+                new CreateBookingRequest(ROOM_ID, firstGameOn(LocalDate.now().plusDays(1)), noDigits, bookingDetails(4)),
+                false));
     }
 
     @Test

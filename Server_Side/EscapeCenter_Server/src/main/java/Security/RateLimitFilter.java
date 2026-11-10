@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * are limited per client address and minute.
  * shortcut: counts in memory and uses the socket address, so it is per server and, behind a reverse proxy,
  * sees the proxy's address; when a proxy is added (roadmap phase 8) turn on forwarded headers or limit there.
+ * Once MAX_TRACKED_ADDRESSES fresh addresses are counted, new addresses pass uncounted so memory stays bounded.
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE + 1)
@@ -70,6 +71,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         long now = System.currentTimeMillis();
         if (windows.size() > MAX_TRACKED_ADDRESSES) {
             windows.values().removeIf(window -> now - window.startMillis() >= WINDOW_MILLIS);
+        }
+        if (windows.size() > MAX_TRACKED_ADDRESSES && !windows.containsKey(address)) {
+            return true;
         }
         Window current = windows.compute(address, (key, old) ->
                 old == null || now - old.startMillis() >= WINDOW_MILLIS

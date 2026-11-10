@@ -28,6 +28,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final String SLOT_CONSTRAINT_NAME = "uq_bookings_room_start";
     private static final String TRY_AGAIN_MESSAGE = "The booking could not be saved. Please try again.";
     private static final String DATABASE_ERROR_MESSAGE = "Database error. Please try again later.";
+    // The booking page translates this code; the detail text is English.
+    public static final String ERROR_CODE_PROPERTY = "code";
+    public static final String TRY_AGAIN_CODE = "TRY_AGAIN";
     private static final String FIELD_ERROR_SEPARATOR = "; ";
 
     @Override
@@ -50,7 +53,9 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, SLOT_TAKEN_MESSAGE);
         }
         LOG.warn("Constraint violation that is not a taken slot", exception);
-        return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, TRY_AGAIN_MESSAGE);
+        ProblemDetail tryAgain = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, TRY_AGAIN_MESSAGE);
+        tryAgain.setProperty(ERROR_CODE_PROPERTY, TRY_AGAIN_CODE);
+        return tryAgain;
     }
 
     @ExceptionHandler(DataAccessException.class)

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
@@ -100,6 +101,12 @@ class BookingRepositoryTest extends MySqlIntegrationTest {
         bookings.saveAndFlush(booking(secondRoom, MORNING));
 
         assertTrue(bookings.existsByRoomIdAndStartAt(secondRoom.getId(), MORNING));
+    }
+
+    @Test
+    void roomThatHoldsOnePerson_isRefusedByTheDatabase() {
+        assertThrows(DataAccessException.class, () -> jdbcTemplate.update(
+                "INSERT INTO rooms (name, capacity, duration_minutes) VALUES (?, 1, ?)", "EmptyRoom", GAME_MINUTES));
     }
 
     @Test

@@ -31,6 +31,9 @@ public class BookingService {
     private static final String TOO_FAR_AHEAD_MESSAGE = "startAt: too far ahead, bookings open at most %d days in advance.";
     private static final String BAD_RANGE_MESSAGE = "from, to: 'to' must not be before 'from' and the range is at most %d days.";
     private static final long MAX_RANGE_DAYS = 366;
+    private static final String NO_PHONE_DIGITS_MESSAGE = "client.phoneNumber: must contain digits.";
+    private static final String NON_DIGITS_REGEX = "\\D";
+    private static final String INTERNATIONAL_PREFIX = "+";
     private static final String ROOM_TOO_SMALL_MESSAGE = "booking.participants: this room holds at most %d people.";
 
     private final BookingRepository bookingRepository;
@@ -97,18 +100,28 @@ public class BookingService {
 
     // The phone number identifies a client. A stranger who knows it must not be able to change that client's name or email.
     private Client findOrCreateClient(ClientDetails details) {
-        return clientRepository.findByPhoneNumber(details.phoneNumber())
+        return clientRepository.findByPhoneNumber(normalizedPhone(details.phoneNumber()))
                 .orElseGet(() -> saveClientDetails(details));
     }
 
     // Staff only: the given name and email replace the stored ones.
     private Client saveClientDetails(ClientDetails details) {
-        Client client = clientRepository.findByPhoneNumber(details.phoneNumber())
-                .orElseGet(() -> new Client(details.phoneNumber()));
+        String phoneNumber = normalizedPhone(details.phoneNumber());
+        Client client = clientRepository.findByPhoneNumber(phoneNumber)
+                .orElseGet(() -> new Client(phoneNumber));
         client.setFirstName(details.firstName());
         client.setLastName(details.lastName());
         client.setEmail(details.email());
         return clientRepository.save(client);
+    }
+
+    // The phone number is the client's identity, so "050-123 4567" and "0501234567" must be the same client.
+    private static String normalizedPhone(String phoneNumber) {
+        String digits = phoneNumber.replaceAll(NON_DIGITS_REGEX, "");
+        if (digits.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, NO_PHONE_DIGITS_MESSAGE);
+        }
+        return phoneNumber.trim().startsWith(INTERNATIONAL_PREFIX) ? INTERNATIONAL_PREFIX + digits : digits;
     }
 
     private static void copyDetails(Booking booking, BookingDetails details) {

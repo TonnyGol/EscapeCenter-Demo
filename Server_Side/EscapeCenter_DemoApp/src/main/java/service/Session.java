@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Properties;
 
@@ -18,6 +19,12 @@ import java.util.Properties;
  */
 public final class Session {
 
+    // Without timeouts a server that stops answering would freeze the screen that is waiting for it.
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
+    private static final String REQUEST_TIMEOUT_PROPERTY = "request.timeout.seconds";
+    private static final String DEFAULT_REQUEST_TIMEOUT_SECONDS = "10";
+
+    // After the constants: the constructor reads them, and statics are set in the order they are written.
     private static final Session INSTANCE = new Session();
 
     private final HttpClient httpClient;
@@ -28,7 +35,7 @@ public final class Session {
     private String encodedAuth;
 
     private Session() {
-        this.httpClient = HttpClient.newHttpClient();
+        this.httpClient = HttpClient.newBuilder().connectTimeout(CONNECT_TIMEOUT).build();
         this.objectMapper = new ObjectMapper();
         this.objectMapper.findAndRegisterModules();
         this.config = loadConfig();
@@ -83,6 +90,12 @@ public final class Session {
      */
     public String getServerUrl() {
         return config.getProperty("server.url", "http://localhost:8080");
+    }
+
+    /** How long one request may wait for the server's answer. */
+    public Duration getRequestTimeout() {
+        return Duration.ofSeconds(Long.parseLong(
+                config.getProperty(REQUEST_TIMEOUT_PROPERTY, DEFAULT_REQUEST_TIMEOUT_SECONDS)));
     }
 
     private Properties loadConfig() {
