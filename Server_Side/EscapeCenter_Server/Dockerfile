@@ -9,7 +9,7 @@ COPY src ./src
 RUN mvn -B -DskipTests package
 
 # runtime: JRE only, alpine so the healthcheck can use busybox wget
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 RUN addgroup -S app && adduser -S app -G app
 USER app
 # Safe by default: the dev profile logs every SQL statement, customer data included.
