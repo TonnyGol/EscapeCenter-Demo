@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:
@@ -17,6 +18,11 @@ jobs:
       - name: Build and test
         working-directory: Server_Side/EscapeCenter_Server
         run: ./mvnw -B clean verify
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jacoco-report
+          path: Server_Side/EscapeCenter_Server/target/site/jacoco
 
   staff-app:
     runs-on: ubuntu-latest
@@ -47,3 +53,35 @@ jobs:
       - run: npm run lint
       - run: npm run build
       - run: npm test -- --run
+
+  docker:
+    needs: [backend, staff-app, frontend]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGISTRY_IMAGE_PREFIX: ghcr.io/tonnygol/escapecenter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: Server_Side/EscapeCenter_Server
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ env.REGISTRY_IMAGE_PREFIX }}-api:${{ github.sha }}
+            ${{ env.REGISTRY_IMAGE_PREFIX }}-api:latest
+      - uses: docker/build-push-action@v6
+        with:
+          context: Client_Side/EscapeCenter_Web
+          build-args: VITE_API_URL=${{ vars.VITE_API_URL }}
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ env.REGISTRY_IMAGE_PREFIX }}-web:${{ github.sha }}
+            ${{ env.REGISTRY_IMAGE_PREFIX }}-web:latest

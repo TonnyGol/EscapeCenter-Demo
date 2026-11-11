@@ -1,5 +1,7 @@
 # EscapeCenter
 
+[![CI](https://github.com/TonnyGol/EscapeCenter-Demo/actions/workflows/ci.yml/badge.svg)](https://github.com/TonnyGol/EscapeCenter-Demo/actions/workflows/ci.yml)
+
 Booking and management system for an escape-room venue: Spring Boot API, React booking site, JavaFX staff app.
 
 <!-- TODO: demo GIF (React booking flow + JavaFX admin calendar), recorded with ScreenToGif -->

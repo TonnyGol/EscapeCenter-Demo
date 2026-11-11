@@ -251,6 +251,20 @@ class BookingServiceTest {
     }
 
     @Test
+    void updateBooking_toAnotherClientsPhone_keepsThatClientsDetails() {
+        Booking booking = tomorrowsBooking();
+        booking.setClient(new Client("0509999999"));
+        Client other = new Client(PHONE);
+        other.setFirstName("Noa");
+        when(clientRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.of(other));
+
+        bookingService.updateBooking(BOOKING_ID, new UpdateBookingRequest(clientDetails(), bookingDetails(5)));
+
+        assertEquals(other, booking.getClient());
+        assertEquals("Noa", other.getFirstName());
+    }
+
+    @Test
     void updateBooking_rejectsTooManyParticipants() {
         tomorrowsBooking();
 

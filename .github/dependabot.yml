@@ -1,0 +1,26 @@
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /Server_Side/EscapeCenter_Server
+    schedule:
+      interval: weekly
+  - package-ecosystem: maven
+    directory: /Server_Side/EscapeCenter_DemoApp
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /Client_Side/EscapeCenter_Web
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /Server_Side/EscapeCenter_Server
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /Client_Side/EscapeCenter_Web
+    schedule:
+      interval: weekly
