@@ -70,14 +70,14 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: Server_Side/EscapeCenter_Server
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: |
             ${{ env.REGISTRY_IMAGE_PREFIX }}-api:${{ github.sha }}
             ${{ env.REGISTRY_IMAGE_PREFIX }}-api:latest
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
         with:
           context: Client_Side/EscapeCenter_Web
           build-args: VITE_API_URL=${{ vars.VITE_API_URL }}
