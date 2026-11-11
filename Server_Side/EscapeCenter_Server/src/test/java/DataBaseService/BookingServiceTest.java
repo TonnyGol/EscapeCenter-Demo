@@ -2,14 +2,17 @@ package DataBaseService;
 
 import Entities.Booking;
 import Entities.Client;
+import Entities.OutboxEvent;
 import Entities.Room;
 import Repositories.BookingRepository;
 import Repositories.ClientRepository;
+import Repositories.OutboxEventRepository;
 import Repositories.RoomRepository;
 import Requests.BookingDetails;
 import Requests.ClientDetails;
 import Requests.CreateBookingRequest;
 import Requests.UpdateBookingRequest;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +31,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -51,13 +55,17 @@ class BookingServiceTest {
     private ClientRepository clientRepository;
     @Mock
     private RoomRepository roomRepository;
+    @Mock
+    private OutboxEventRepository outboxEventRepository;
 
     private BookingService bookingService;
     private Room room;
 
     @BeforeEach
     void setUp() {
-        bookingService = new BookingService(bookingRepository, clientRepository, roomRepository, MAX_DAYS_AHEAD);
+        // findAndRegisterModules adds Java time support, which the event's LocalDateTime needs (Spring's own mapper has it).
+        bookingService = new BookingService(bookingRepository, clientRepository, roomRepository, outboxEventRepository,
+                new ObjectMapper().findAndRegisterModules(), MAX_DAYS_AHEAD);
         room = newRoom();
     }
 
@@ -121,6 +129,20 @@ class BookingServiceTest {
     }
 
     @Test
+    void createBooking_savesBookingCreatedEventInTheOutbox() {
+        stubRoom();
+        when(clientRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.empty());
+        when(clientRepository.save(any(Client.class))).thenAnswer(call -> call.getArgument(0));
+
+        bookingService.createBooking(request(firstGameOn(LocalDate.now().plusDays(1)), 4), false);
+
+        ArgumentCaptor<OutboxEvent> saved = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxEventRepository).save(saved.capture());
+        assertEquals(OutboxEvent.BOOKING_CREATED, saved.getValue().getType());
+        assertTrue(saved.getValue().getPayload().contains("dana@example.com"));
+    }
+
+    @Test
     void createBooking_rejectsTakenSlotWith409() {
         stubRoom();
         LocalDateTime startAt = firstGameOn(LocalDate.now().plusDays(1));
@@ -128,6 +150,7 @@ class BookingServiceTest {
 
         assertStatus(HttpStatus.CONFLICT, () -> bookingService.createBooking(request(startAt, 4), false));
         verify(bookingRepository, never()).save(any());
+        verify(outboxEventRepository, never()).save(any());
     }
 
     @Test

@@ -7,6 +7,11 @@ spring:
     url: ${DB_URL:jdbc:mysql://localhost:3306/escapecenter}
     username: ${MYSQL_USER}
     password: ${MYSQL_PASSWORD}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
   jpa:
     hibernate:
       # Flyway owns the schema; Hibernate only checks that the entities match it.
@@ -25,6 +30,12 @@ app:
     # Per client address and minute. Staff calls and failed logins both carry an Authorization header.
     bookings-per-minute: 10
     authenticated-per-minute: 30
+  outbox:
+    # Pause between runs of the publisher that sends saved booking events to RabbitMQ.
+    publish-delay-ms: 3000
+    # Published events are deleted after this many days, by a job that runs at 03:00.
+    retention-days: 7
+    purge-cron: "0 0 3 * * *"
   admin:
     user: ${APP_ADMIN_USER}
     password: ${APP_ADMIN_PASSWORD}
