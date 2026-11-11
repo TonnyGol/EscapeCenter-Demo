@@ -4,23 +4,47 @@ updates:
     directory: /Server_Side/EscapeCenter_Server
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
   - package-ecosystem: maven
     directory: /Server_Side/EscapeCenter_DemoApp
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
   - package-ecosystem: npm
     directory: /Client_Side/EscapeCenter_Web
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
   - package-ecosystem: docker
     directory: /Server_Side/EscapeCenter_Server
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
   - package-ecosystem: docker
     directory: /Client_Side/EscapeCenter_Web
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
