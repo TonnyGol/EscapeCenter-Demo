@@ -3,6 +3,10 @@ package DataBaseService;
 import Entities.Booking;
 import Entities.Client;
 import Entities.Room;
+import Entities.OutboxEvent;
+import Repositories.OutboxEventRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import Repositories.BookingRepository;
 import Repositories.ClientRepository;
 import Repositories.RoomRepository;
@@ -39,14 +43,19 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final ClientRepository clientRepository;
     private final RoomRepository roomRepository;
+    private final OutboxEventRepository outboxEventRepository;
+    private final ObjectMapper objectMapper;
     private final int maxDaysAhead;
 
     public BookingService(BookingRepository bookingRepository, ClientRepository clientRepository,
-                          RoomRepository roomRepository, @Value("${app.booking.max-days-ahead}") int maxDaysAhead) {
+                          RoomRepository roomRepository, OutboxEventRepository outboxEventRepository,
+                          ObjectMapper objectMapper, @Value("${app.booking.max-days-ahead}") int maxDaysAhead) {
         this.maxDaysAhead = maxDaysAhead;
         this.bookingRepository = bookingRepository;
         this.clientRepository = clientRepository;
         this.roomRepository = roomRepository;
+        this.outboxEventRepository = outboxEventRepository;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -73,6 +82,7 @@ public class BookingService {
         booking.setClient(bookedByStaff ? saveClientDetails(request.client()) : findOrCreateClient(request.client()));
         copyDetails(booking, request.booking());
         bookingRepository.save(booking);
+        recordBookingCreated(booking);
     }
 
     @Transactional(readOnly = true)
@@ -99,6 +109,21 @@ public class BookingService {
     @Transactional
     public void deleteBooking(Long id) {
         bookingRepository.delete(findBookingById(id));
+    }
+
+    // Saved in the same transaction as the booking: if either fails, both roll back.
+    private void recordBookingCreated(Booking booking) {
+        BookingCreatedEvent event = new BookingCreatedEvent(booking.getId(), booking.getClient().getEmail(),
+                booking.getClient().getFirstName(), booking.getRoom().getName(), booking.getStartAt(), booking.getParticipants());
+        try {
+            outboxEventRepository.save(new OutboxEvent(OutboxEvent.BOOKING_CREATED, objectMapper.writeValueAsString(event)));
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private record BookingCreatedEvent(Long bookingId, String clientEmail, String clientFirstName,
+                                       String roomName, LocalDateTime startAt, int participants) {
     }
 
     // The phone number identifies a client. A stranger who knows it must not be able to change that client's name or email.

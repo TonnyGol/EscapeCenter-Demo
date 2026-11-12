@@ -1,0 +1,11 @@
+Hi ${firstName},
+
+Your booking is confirmed.
+
+Room: ${roomName}
+When: ${startAt}
+Players: ${participants}
+Booking number: ${bookingId}
+
+See you there!
+Escape Center

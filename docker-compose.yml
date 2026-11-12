@@ -2,7 +2,12 @@ services:
   mysql:
     image: mysql:8.4
     command: --character-set-server=utf8mb4
-    env_file: .env
+    # Only the MySQL values, not env_file: the staff and broker passwords in .env are none of MySQL's business.
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?set MYSQL_DATABASE in .env}
+      MYSQL_USER: ${MYSQL_USER:?set MYSQL_USER in .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
     ports:
       # Bound to this machine only: the root account accepts logins from any address.
       - "127.0.0.1:3306:3306"
@@ -16,12 +21,42 @@ services:
       retries: 3
       start_period: 30s
 
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?set RABBITMQ_USER in .env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+    ports:
+      # Local only: 5672 is the broker, 15672 the management UI.
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  mailpit:
+    # Dev-only fake SMTP server: catches every email so nothing real is sent.
+    image: axllent/mailpit
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+
   api:
     build: ./Server_Side/EscapeCenter_Server
     depends_on:
       mysql:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:?set RABBITMQ_USER in .env}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
       # ":?" stops compose with a clear message when .env lacks the value, instead of passing an empty string.
       DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:?set MYSQL_DATABASE in .env}
       MYSQL_USER: ${MYSQL_USER:?set MYSQL_USER in .env}
@@ -30,6 +65,25 @@ services:
       APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:?set APP_ADMIN_PASSWORD in .env}
     ports:
       - "8080:8080"
+
+  notification-service:
+    build: ./Server_Side/notification-service
+    depends_on:
+      mysql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    environment:
+      # Same MySQL server as the API, but this service only touches its own processed_events table.
+      DB_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE:?set MYSQL_DATABASE in .env}
+      MYSQL_USER: ${MYSQL_USER:?set MYSQL_USER in .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER:?set RABBITMQ_USER in .env}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+      MAIL_HOST: mailpit
 
   web:
     build: ./Client_Side/EscapeCenter_Web
@@ -40,3 +94,4 @@ services:
 
 volumes:
   mysql_data:
+  rabbitmq_data:

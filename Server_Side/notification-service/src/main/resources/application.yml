@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: notification-service
+  main:
+    # Only listens to RabbitMQ: no HTTP server needed.
+    web-application-type: none
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/escapecenter}
+    username: ${MYSQL_USER}
+    password: ${MYSQL_PASSWORD}
+  sql:
+    init:
+      mode: always
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+    listener:
+      simple:
+        # A failing message is tried 3 times, 1s then 2s apart, then DeadLetterConfig sends it to bookings.dlq.
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1s
+          multiplier: 2
+  mail:
+    host: ${MAIL_HOST:localhost}
+    # 1025 is Mailpit's SMTP port. Set MAIL_HOST, MAIL_PORT and the login for a real mail server.
+    port: ${MAIL_PORT:1025}
+    properties:
+      # JavaMail waits forever by default: a mail server that goes silent would freeze the queue with no error.
+      # With timeouts it throws, so the retry and dead-letter path takes over.
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
+
+app:
+  mail:
+    from: ${MAIL_FROM:noreply@escapecenter.local}
