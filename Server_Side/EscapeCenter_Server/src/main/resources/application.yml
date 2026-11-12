@@ -12,6 +12,8 @@ spring:
     port: 5672
     username: ${RABBITMQ_USER:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+    # Lets OutboxPublisher wait until the broker confirms it stored a message.
+    publisher-confirm-type: simple
   jpa:
     hibernate:
       # Flyway owns the schema; Hibernate only checks that the entities match it.

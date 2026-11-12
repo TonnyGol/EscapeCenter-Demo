@@ -1,0 +1,10 @@
+Hi ${firstName},
+
+Your booking was cancelled.
+
+Room: ${roomName}
+When: ${startAt}
+Booking number: ${bookingId}
+
+You are welcome to book another time.
+Escape Center

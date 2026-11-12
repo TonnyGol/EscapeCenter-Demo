@@ -9,7 +9,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.amqp.AmqpConnectException;
+import org.springframework.amqp.AmqpIOException;
 import org.springframework.amqp.core.MessagePostProcessor;
+import org.springframework.amqp.rabbit.core.RabbitOperations;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Pageable;
 
@@ -21,9 +23,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,6 +48,9 @@ class OutboxPublisherTest {
     @BeforeEach
     void setUp() {
         publisher = new OutboxPublisher(outboxEventRepository, rabbitTemplate, RETENTION_DAYS);
+        // The publisher sends inside RabbitTemplate.invoke; the mock must run that callback on itself.
+        lenient().when(rabbitTemplate.invoke(any())).thenAnswer(call ->
+                call.<RabbitOperations.OperationsCallback<?>>getArgument(0).doInRabbit(rabbitTemplate));
     }
 
     private void stubPending(OutboxEvent... events) {
@@ -74,6 +81,17 @@ class OutboxPublisherTest {
 
         assertNull(first.getPublishedAt());
         assertNull(second.getPublishedAt());
+    }
+
+    @Test
+    void publishPendingEvents_brokerDoesNotConfirm_leavesEventUnpublished() {
+        OutboxEvent event = new OutboxEvent(OutboxEvent.BOOKING_CREATED, PAYLOAD);
+        stubPending(event);
+        doThrow(new AmqpIOException(new IOException("nack"))).when(rabbitTemplate).waitForConfirmsOrDie(anyLong());
+
+        publisher.publishPendingEvents();
+
+        assertNull(event.getPublishedAt());
     }
 
     @Test

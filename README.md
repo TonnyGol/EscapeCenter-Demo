@@ -13,7 +13,35 @@ flowchart LR
   Web[React + Vite SPA] -->|REST/JSON| API[Spring Boot API]
   Admin[JavaFX staff app] -->|REST/JSON| API
   API --> DB[(MySQL)]
+  API -->|outbox publisher| MQ{{RabbitMQ}}
+  MQ -->|booking.created| Notify[Notification service]
+  Notify -->|SMTP| Mail[Mailpit in dev]
+  Notify --> DB
 ```
+
+### Booking emails
+
+Creating a booking never waits for an email:
+
+1. The API saves the booking **and** a `BookingCreated` row in `outbox_events` in one database transaction.
+2. A scheduled job in the API sends unpublished rows to the RabbitMQ exchange `bookings` and marks them published.
+3. The notification service reads the queue `bookings.notifications` and sends the email (Mailpit in dev, any SMTP server through `MAIL_HOST` / `MAIL_PORT` in production).
+
+**Why an outbox?** Saving the booking and sending a message are two systems, and no single transaction covers both. Without the outbox, a crash between them gives a booking with no email, or an email for a booking that was rolled back. With it, the event exists if and only if the booking does.
+
+**What happens when something is down**
+
+| Down | Result |
+|------|--------|
+| RabbitMQ | Bookings still work. Events stay unpublished in `outbox_events` and go out when the broker is back. |
+| Notification service | Messages wait in the durable queue and are delivered when it restarts. |
+| Email server | The message is retried 3 times (1 s, then 2 s apart), then moved to the dead-letter queue `bookings.dlq` with the error in its headers. Look at it in the RabbitMQ UI (http://localhost:15672) and move it back to the exchange to try again. |
+
+Delivery is at-least-once, so the same event can arrive twice. The notification service writes each event's id to `processed_events` in the same transaction as the email and skips ids it has seen. Published outbox rows are deleted after 7 days.
+
+**Known limit:** the email address in a public booking is not verified, so someone could enter a stranger's address and that person would get the confirmation. The rate limit slows this down but does not stop it. A confirmation link in the email (roadmap phase 7b, customer self-service) is the real fix; add it before real customers use the site.
+
+In dev, every email lands in Mailpit at http://localhost:8025 and nothing leaves your machine.
 
 ## Features
 
@@ -28,6 +56,7 @@ flowchart LR
 |------|-----------|
 | API | Java 21, Spring Boot 3.4, JDBC |
 | Database | MySQL 8.4 (Docker Compose) |
+| Messaging | RabbitMQ, transactional outbox, notification service (Spring Boot) |
 | Booking site | React 19, Vite |
 | Staff app | JavaFX 21 |
 | Security | Spring Security (HTTP Basic) |

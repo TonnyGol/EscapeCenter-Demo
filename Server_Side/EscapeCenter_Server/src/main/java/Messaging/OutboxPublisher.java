@@ -20,6 +20,7 @@ public class OutboxPublisher {
     private static final Logger log = LoggerFactory.getLogger(OutboxPublisher.class);
     private static final Map<String, String> ROUTING_KEYS = Map.of(OutboxEvent.BOOKING_CREATED, "booking.created");
     private static final int BATCH_SIZE = 50;
+    private static final long CONFIRM_TIMEOUT_MILLIS = 5000;
     private static final String BROKER_DOWN_MESSAGE = "RabbitMQ unreachable, will retry: {}";
     private static final String UNKNOWN_TYPE_MESSAGE = "Outbox event {} has unknown type {} and stays unpublished";
 
@@ -46,18 +47,26 @@ public class OutboxPublisher {
                 continue;
             }
             try {
-                // The event id travels as the message id so the notification service can spot duplicates.
-                rabbitTemplate.convertAndSend(MessagingConfig.BOOKINGS_EXCHANGE, routingKey, event.getPayload(),
-                        message -> {
-                            message.getMessageProperties().setMessageId(event.getId());
-                            return message;
-                        });
+                sendAndWaitForConfirm(event, routingKey);
             } catch (AmqpException e) {
                 log.warn(BROKER_DOWN_MESSAGE, e.getMessage());
                 return;
             }
             event.markPublished();
         }
+    }
+
+    // Without the confirm, a broker that crashes right after accepting a message loses it while the row says "published".
+    private void sendAndWaitForConfirm(OutboxEvent event, String routingKey) {
+        rabbitTemplate.invoke(channel -> {
+            // The event id travels as the message id so the notification service can spot duplicates.
+            channel.convertAndSend(MessagingConfig.BOOKINGS_EXCHANGE, routingKey, event.getPayload(), message -> {
+                message.getMessageProperties().setMessageId(event.getId());
+                return message;
+            });
+            channel.waitForConfirmsOrDie(CONFIRM_TIMEOUT_MILLIS);
+            return null;
+        });
     }
 
     // The payload holds the client's email, so it is not kept longer than needed.

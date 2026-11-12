@@ -27,7 +27,9 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -140,6 +142,22 @@ class BookingServiceTest {
         verify(outboxEventRepository).save(saved.capture());
         assertEquals(OutboxEvent.BOOKING_CREATED, saved.getValue().getType());
         assertTrue(saved.getValue().getPayload().contains("dana@example.com"));
+    }
+
+    // The notification service reads these exact keys (BookingEvent and BookingEventTest there): rename one and both sides must change.
+    @Test
+    void createBooking_outboxPayloadHasTheFieldsTheNotificationServiceReads() throws Exception {
+        stubRoom();
+        when(clientRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.empty());
+        when(clientRepository.save(any(Client.class))).thenAnswer(call -> call.getArgument(0));
+
+        bookingService.createBooking(request(firstGameOn(LocalDate.now().plusDays(1)), 4), false);
+
+        ArgumentCaptor<OutboxEvent> saved = ArgumentCaptor.forClass(OutboxEvent.class);
+        verify(outboxEventRepository).save(saved.capture());
+        Set<String> keys = new HashSet<>();
+        new ObjectMapper().readTree(saved.getValue().getPayload()).fieldNames().forEachRemaining(keys::add);
+        assertEquals(Set.of("bookingId", "clientEmail", "clientFirstName", "roomName", "startAt", "participants"), keys);
     }
 
     @Test
