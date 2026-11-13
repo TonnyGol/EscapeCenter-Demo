@@ -81,6 +81,10 @@ public class BookingService {
         Booking booking = new Booking(room, request.startAt(), request.startAt().plusMinutes(room.getDurationMinutes()));
         booking.setClient(bookedByStaff ? saveClientDetails(request.client()) : findOrCreateClient(request.client()));
         copyDetails(booking, request.booking());
+        booking.setNotes(request.booking().notes());
+        if (bookedByStaff) {
+            copyStaffDetails(booking, request.booking());
+        }
         bookingRepository.save(booking);
         recordBookingCreated(booking);
     }
@@ -104,6 +108,14 @@ public class BookingService {
         boolean phoneChanged = current == null || !current.getPhoneNumber().equals(normalizedPhone(request.client().phoneNumber()));
         booking.setClient(phoneChanged ? findOrCreateClient(request.client()) : saveClientDetails(request.client()));
         copyDetails(booking, request.booking());
+        copyStaffDetails(booking, request.booking());
+    }
+
+    @Transactional(readOnly = true)
+    public List<StaffBookingResponse> getClientBookings(Long clientId) {
+        return bookingRepository.findByClientIdOrderByStartAtDesc(clientId).stream()
+                .map(StaffBookingResponse::from)
+                .toList();
     }
 
     @Transactional
@@ -144,7 +156,7 @@ public class BookingService {
     }
 
     // The phone number is the client's identity, so "050-123 4567" and "0501234567" must be the same client.
-    private static String normalizedPhone(String phoneNumber) {
+    static String normalizedPhone(String phoneNumber) {
         String digits = phoneNumber.replaceAll(NON_DIGITS_REGEX, "");
         if (digits.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, NO_PHONE_DIGITS_MESSAGE);
@@ -156,7 +168,14 @@ public class BookingService {
         booking.setParticipants(details.participants());
         booking.setExperience(details.experience());
         booking.setColor(details.color());
-        booking.setNotes(details.notes());
+    }
+
+    // A customer's request never reaches here, so a public caller cannot set the type or write staff notes.
+    private static void copyStaffDetails(Booking booking, BookingDetails details) {
+        if (details.type() != null) {
+            booking.setType(details.type());
+        }
+        booking.setInternalNotes(details.internalNotes());
     }
 
     // The horizon stops a script from filling the calendar of every room for years ahead.

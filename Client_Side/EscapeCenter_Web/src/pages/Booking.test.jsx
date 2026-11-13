@@ -7,7 +7,9 @@ import Booking from './Booking'
 
 vi.mock('axios')
 
-const DAYS_IN_WEEK = 7
+const NEXT_MONTH_LABEL = 'החודש הבא'
+const PREVIOUS_MONTH_LABEL = 'החודש הקודם'
+const MID_MONTH_DAY = 15
 const MISSING_DETAILS_MESSAGE = 'יש למלא שם פרטי, שם משפחה וטלפון.'
 const SLOT_TAKEN_MESSAGE = 'המשבצת הזו כבר נתפסה, בחרו שעה אחרת.'
 const BOOKING_SAVED_MESSAGE = 'הזמנה נשמרה בהצלחה!'
@@ -57,15 +59,55 @@ describe('Booking page', () => {
         vi.restoreAllMocks()
     })
 
-    it('shows available and taken slots for every day of the week', async () => {
+    it('shows the available and taken slots of today when the page opens', async () => {
         showBookingPage()
 
-        expect(await screen.findAllByText(AVAILABLE_LABEL)).toHaveLength(DAYS_IN_WEEK)
-        expect(screen.getAllByText(BOOKED_LABEL)).toHaveLength(DAYS_IN_WEEK)
-        screen.getAllByRole('button', { name: new RegExp(BOOKED_LABEL) })
-            .forEach(button => expect(button).toBeDisabled())
-        screen.getAllByRole('button', { name: new RegExp(AVAILABLE_LABEL) })
-            .forEach(button => expect(button).toBeEnabled())
+        expect(await screen.findAllByText(AVAILABLE_LABEL)).toHaveLength(1)
+        expect(screen.getAllByText(BOOKED_LABEL)).toHaveLength(1)
+        expect(screen.getByRole('button', { name: new RegExp(BOOKED_LABEL) })).toBeDisabled()
+        expect(screen.getByRole('button', { name: new RegExp(AVAILABLE_LABEL) })).toBeEnabled()
+        const [, { params }] = axios.get.mock.calls.find(([url]) => url.includes('/availability'))
+        expect(params.date).toBe(new Date().toLocaleDateString('en-CA'))
+    })
+
+    it('loads the slots of a date the customer picks in another month', async () => {
+        const user = userEvent.setup()
+        showBookingPage()
+        await screen.findAllByText(AVAILABLE_LABEL)
+        const today = new Date()
+        const pickedDay = new Date(today.getFullYear(), today.getMonth() + 1, MID_MONTH_DAY)
+
+        await user.click(screen.getByRole('button', { name: NEXT_MONTH_LABEL }))
+        await user.click(screen.getByRole('button', { name: new RegExp(`${MID_MONTH_DAY} ב`) }))
+
+        await waitFor(() => {
+            const dates = axios.get.mock.calls
+                .filter(([url]) => url.includes('/availability'))
+                .map(([, { params }]) => params.date)
+            expect(dates).toContain(pickedDay.toLocaleDateString('en-CA'))
+        })
+    })
+
+    it('offers dates from today up to three months ahead and no further', async () => {
+        const user = userEvent.setup()
+        showBookingPage()
+        await screen.findAllByText(AVAILABLE_LABEL)
+
+        expect(screen.getByRole('button', { name: PREVIOUS_MONTH_LABEL })).toBeDisabled()
+        for (let month = 0; month < 3; month++) {
+            await user.click(screen.getByRole('button', { name: NEXT_MONTH_LABEL }))
+        }
+
+        expect(screen.getByRole('button', { name: NEXT_MONTH_LABEL })).toBeDisabled()
+    })
+
+    it('tells the customer when the chosen date has no free slot', async () => {
+        axios.get.mockImplementation(url =>
+            Promise.resolve({ data: url.endsWith('/api/rooms') ? [ROOM] : [TAKEN_SLOT] }))
+
+        showBookingPage()
+
+        expect(await screen.findByText(/אין שעות פנויות בתאריך הזה/)).toBeInTheDocument()
     })
 
     it('shows a connection error when the rooms cannot be loaded', async () => {
@@ -87,7 +129,7 @@ describe('Booking page', () => {
         expect(axios.post).not.toHaveBeenCalled()
     })
 
-    it('sends the booking and reloads the week when the details are valid', async () => {
+    it('sends the booking and reloads the day when the details are valid', async () => {
         axios.post.mockResolvedValue({})
         const user = userEvent.setup()
         showBookingPage()
@@ -134,7 +176,7 @@ describe('Booking page', () => {
         expect(screen.getByRole('button', { name: SUBMIT_LABEL })).toBeInTheDocument()
     })
 
-    it('tells the customer the slot is taken on 409 and reloads the week', async () => {
+    it('tells the customer the slot is taken on 409 and reloads the day', async () => {
         axios.post.mockRejectedValue(rejectedWith(409))
         const user = userEvent.setup()
         showBookingPage()

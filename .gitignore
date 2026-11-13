@@ -69,3 +69,7 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# ===== Claude Code (local plugins: impeccable, ui-ux-pro-max) =====
+.claude/settings.local.json
+.claude/launch.json

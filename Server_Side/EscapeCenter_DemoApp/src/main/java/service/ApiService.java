@@ -180,6 +180,22 @@ public final class ApiService {
         return byPhone;
     }
 
+    /**
+     * Replace a client's name, phone and email.
+     * @return empty if the server accepted it, otherwise the reason it refused
+     */
+    public Optional<String> updateClient(Client client) {
+        return sendJson(request(CLIENTS_PATH + "/" + client.id()), "PUT", client);
+    }
+
+    /**
+     * Load every booking of one client, newest game first.
+     * @return the bookings, or empty if the server did not answer
+     */
+    public Optional<List<Booking>> loadClientBookings(Long clientId) {
+        return load(CLIENTS_PATH + "/" + clientId + "/bookings", new TypeReference<List<Booking>>() {});
+    }
+
     // ---- Shared request helpers ----
 
     private <T> Optional<T> load(String path, TypeReference<T> type) {

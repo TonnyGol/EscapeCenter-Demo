@@ -67,7 +67,7 @@ public class NavigationShell {
         Button dashBtn = createNavButton("📊  לוח בקרה", "מעבר ללוח הבקרה הראשי");
         Button bookingBtn = createNavButton("📅  הזמנות", "ניהול הזמנות וחדרי בריחה");
         Button clientBtn = createNavButton("👥  לקוחות", "ניהול מאגר לקוחות");
-        Button reportsBtn = createNavButton("📋  דו\"חות", "צפייה בדו\"חות — בקרוב");
+        Button reportsBtn = createNavButton("📋  דו\"חות", "משחקים ששוחקו והוזמנו השבוע והחודש");
         Button logoutBtn = createNavButton("🚪  התנתק", "התנתקות וחזרה למסך הכניסה");
         logoutBtn.getStyleClass().add("nav-button-logout");
 
@@ -115,13 +115,9 @@ public class NavigationShell {
         });
 
         reportsBtn.setOnAction(e -> {
-            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
-                    javafx.scene.control.Alert.AlertType.INFORMATION,
-                    "דו\"חות — תכונה זו תהיה זמינה בקרוב!",
-                    javafx.scene.control.ButtonType.OK
-            );
-            alert.setHeaderText(null);
-            alert.showAndWait();
+            setActiveButton(reportsBtn);
+            // A fresh pane each time, so the numbers are never from an earlier visit.
+            switchContent(new ReportsScreen().createPane());
         });
 
         logoutBtn.setOnAction(e -> {
@@ -157,6 +153,16 @@ public class NavigationShell {
     public void navigateToClients() {
         for (Node node : sidebar.getChildren()) {
             if (node instanceof Button btn && btn.getText().contains("לקוחות")) {
+                btn.fire();
+                break;
+            }
+        }
+    }
+
+    /** Navigate to reports screen. */
+    public void navigateToReports() {
+        for (Node node : sidebar.getChildren()) {
+            if (node instanceof Button btn && btn.getText().contains("דו\"חות")) {
                 btn.fire();
                 break;
             }

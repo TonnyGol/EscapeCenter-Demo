@@ -102,7 +102,7 @@ class BookingServiceTest {
     }
 
     private static BookingDetails bookingDetails(int participants) {
-        return new BookingDetails(participants, "beginner", "no notes", "red");
+        return new BookingDetails(participants, "beginner", "no notes", "red", null, null);
     }
 
     private static CreateBookingRequest request(LocalDateTime startAt, int participants) {

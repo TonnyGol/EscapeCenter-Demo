@@ -48,6 +48,17 @@ public class Booking {
     @Column(nullable = false)
     private BookingStatus status = BookingStatus.CONFIRMED;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "booking_type", nullable = false)
+    private BookingType type = BookingType.CLIENT;
+
+    @Column(name = "internal_notes", length = 1000)
+    private String internalNotes;
+
+    // Filled by the database default when the row is inserted.
+    @Column(name = "created_at", insertable = false, updatable = false)
+    private LocalDateTime createdAt;
+
     protected Booking() {
     }
 
@@ -115,5 +126,25 @@ public class Booking {
 
     public void setNotes(String notes) {
         this.notes = notes;
+    }
+
+    public BookingType getType() {
+        return type;
+    }
+
+    public void setType(BookingType type) {
+        this.type = type;
+    }
+
+    public String getInternalNotes() {
+        return internalNotes;
+    }
+
+    public void setInternalNotes(String internalNotes) {
+        this.internalNotes = internalNotes;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 }

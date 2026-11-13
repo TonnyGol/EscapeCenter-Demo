@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
 import { useSearchParams } from "react-router-dom";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import "./Booking.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
@@ -14,7 +15,11 @@ const TRY_AGAIN_CODE = "TRY_AGAIN";
 const HTTP_BAD_REQUEST = 400;
 const HTTP_CONFLICT = 409;
 const BOOKING_COLOR = "#fecaca";
-const DAYS_IN_WEEK = 7;
+const MONTHS_BOOKABLE_AHEAD = 3;
+const WEEKDAY_INITIALS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
+const LOADING = "loading";
+const READY = "ready";
+const FAILED = "failed";
 const ROOM_ICONS = {
     "אחוזת השכן": "🏚️",
     "מקדש הקאמי": "⛩️",
@@ -32,14 +37,29 @@ const EMPTY_FORM = {
     participants: 2
 };
 
-const getWeekDays = () => {
+const startOfToday = () => {
     const today = new Date();
-    const sunday = new Date(today.setDate(today.getDate() - today.getDay()));
-    return Array.from({ length: DAYS_IN_WEEK }, (_, offset) => {
-        const day = new Date(sunday);
-        day.setDate(sunday.getDate() + offset);
-        return day;
-    });
+    today.setHours(0, 0, 0, 0);
+    return today;
+};
+
+const lastBookableDay = today => {
+    const last = new Date(today);
+    last.setMonth(last.getMonth() + MONTHS_BOOKABLE_AHEAD);
+    return last;
+};
+
+const firstOfMonth = day => new Date(day.getFullYear(), day.getMonth(), 1);
+
+const addMonths = (month, count) => new Date(month.getFullYear(), month.getMonth() + count, 1);
+
+// The days of a month, after one empty cell for each weekday before the 1st, so every date sits under its weekday.
+const monthCells = month => {
+    const daysInMonth = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+    const emptyCells = Array(month.getDay()).fill(null);
+    const days = Array.from({ length: daysInMonth }, (_, index) =>
+        new Date(month.getFullYear(), month.getMonth(), index + 1));
+    return [...emptyCells, ...days];
 };
 
 // "en-CA" prints a date as YYYY-MM-DD in local time, which is what the API expects.
@@ -53,19 +73,18 @@ const Booking = () => {
     const [isConnected, setIsConnected] = useState(false);
     const [rooms, setRooms] = useState([]);
     const [selectedRoom, setSelectedRoom] = useState(null);
-    const [weekSlots, setWeekSlots] = useState([]);
+    const today = useMemo(startOfToday, []);
+    const lastDay = useMemo(() => lastBookableDay(today), [today]);
+    const [selectedDate, setSelectedDate] = useState(today);
+    const [visibleMonth, setVisibleMonth] = useState(() => firstOfMonth(today));
+    const [availability, setAvailability] = useState({ status: LOADING, slots: [] });
+    // Changing this number loads the chosen day again, after a booking or when the customer asks to retry.
+    const [reloadCount, setReloadCount] = useState(0);
     const [selectedSlot, setSelectedSlot] = useState(null);
     const [formData, setFormData] = useState(EMPTY_FORM);
     const [isSaving, setIsSaving] = useState(false);
 
-    const weekDays = useMemo(getWeekDays, []);
-
-    const loadWeek = useCallback(room =>
-        Promise.all(weekDays.map(day =>
-            axios.get(`${API_URL}/api/rooms/${room.id}/availability`, { params: { date: toDateParam(day) } })
-        ))
-            .then(responses => setWeekSlots(responses.map(response => response.data)))
-            .catch(err => console.error("Error loading availability", err)), [weekDays]);
+    const reloadDay = () => setReloadCount(count => count + 1);
 
     useEffect(() => {
         axios.get(`${API_URL}/api/rooms`)
@@ -81,8 +100,22 @@ const Booking = () => {
     }, [preSelectedRoom]);
 
     useEffect(() => {
-        if (selectedRoom) loadWeek(selectedRoom);
-    }, [selectedRoom, loadWeek]);
+        if (!selectedRoom) return;
+        // A customer who clicks through dates quickly must not see the slots of an earlier click arrive late.
+        let isStale = false;
+        setAvailability({ status: LOADING, slots: [] });
+        axios.get(`${API_URL}/api/rooms/${selectedRoom.id}/availability`, { params: { date: toDateParam(selectedDate) } })
+            .then(response => {
+                if (!isStale) setAvailability({ status: READY, slots: response.data });
+            })
+            .catch(err => {
+                console.error("Error loading availability", err);
+                if (!isStale) setAvailability({ status: FAILED, slots: [] });
+            });
+        return () => {
+            isStale = true;
+        };
+    }, [selectedRoom, selectedDate, reloadCount]);
 
     const handleInputChange = e => {
         const { name, value } = e.target;
@@ -109,7 +142,7 @@ const Booking = () => {
                 alert(BOOKING_SAVED_MESSAGE);
                 setSelectedSlot(null);
                 setFormData(EMPTY_FORM);
-                loadWeek(selectedRoom);
+                reloadDay();
             })
             .catch(err => {
                 const status = err.response?.status;
@@ -120,7 +153,7 @@ const Booking = () => {
                 if (status === HTTP_CONFLICT) {
                     alert(SLOT_TAKEN_MESSAGE);
                     setSelectedSlot(null);
-                    loadWeek(selectedRoom);
+                    reloadDay();
                     return;
                 }
                 const serverReason = status === HTTP_BAD_REQUEST ? `\n${err.response.data.detail}` : "";
@@ -130,39 +163,61 @@ const Booking = () => {
             .finally(() => setIsSaving(false));
     };
 
-    const renderDayColumn = (day, dayIndex) => {
-        const slots = weekSlots[dayIndex] || [];
+    const isBookable = day => day >= today && day <= lastDay;
+    const hasEarlierMonth = visibleMonth > firstOfMonth(today);
+    const hasLaterMonth = addMonths(visibleMonth, 1) <= lastDay;
 
+    const renderDay = (day, cellIndex) => {
+        if (!day) return <span key={`empty-${cellIndex}`} />;
+
+        const isSelected = day.getTime() === selectedDate.getTime();
+        const isToday = day.getTime() === today.getTime();
         return (
-            <div className="day-column" key={dayIndex}>
-                <div className="day-label">
-                    <div className="day-name">
-                        {day.toLocaleDateString("he-IL", { weekday: "short" })}
-                    </div>
-                    <div className="day-date">
-                        {day.toLocaleDateString("he-IL", { day: '2-digit', month: '2-digit' })}
-                    </div>
-                </div>
+            <button
+                key={day.getTime()}
+                type="button"
+                className={`day-cell ${isSelected ? "selected" : ""} ${isToday ? "today" : ""}`}
+                onClick={() => setSelectedDate(day)}
+                disabled={!isBookable(day)}
+                aria-pressed={isSelected}
+                aria-label={day.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
+            >
+                {day.getDate()}
+            </button>
+        );
+    };
 
-                <div className="time-slots">
-                    {slots.map(slot => {
-                        const timeRange = `${timeOf(slot.startAt)}-${timeOf(slot.endAt)}`;
-
-                        return (
-                            <button
-                                key={slot.startAt}
-                                className={`slot-button ${slot.available ? "available" : "booked"}`}
-                                onClick={() => setSelectedSlot(slot)}
-                                disabled={!slot.available}
-                            >
-                                <span className="slot-time">{timeRange}</span>
-                                <span className={`slot-status ${slot.available ? "status-available" : "status-booked"}`}>
-                                    {slot.available ? "פנוי" : "תפוס"}
-                                </span>
-                            </button>
-                        );
-                    })}
+    const renderSlots = () => {
+        if (availability.status === LOADING) {
+            return <p className="slots-message" role="status">טוענים את השעות…</p>;
+        }
+        if (availability.status === FAILED) {
+            return (
+                <div className="slots-message" role="alert">
+                    <p>השעות של התאריך הזה לא נטענו.</p>
+                    <button type="button" className="btn btn-secondary" onClick={reloadDay}>נסו שוב</button>
                 </div>
+            );
+        }
+        if (!availability.slots.some(slot => slot.available)) {
+            return <p className="slots-message" role="status">אין שעות פנויות בתאריך הזה. בחרו תאריך אחר בלוח.</p>;
+        }
+        return (
+            <div className="time-slots">
+                {availability.slots.map(slot => (
+                    <button
+                        key={slot.startAt}
+                        type="button"
+                        className={`slot-button ${slot.available ? "available" : "booked"}`}
+                        onClick={() => setSelectedSlot(slot)}
+                        disabled={!slot.available}
+                    >
+                        <span className="slot-time">{timeOf(slot.startAt)}-{timeOf(slot.endAt)}</span>
+                        <span className={`slot-status ${slot.available ? "status-available" : "status-booked"}`}>
+                            {slot.available ? "פנוי" : "תפוס"}
+                        </span>
+                    </button>
+                ))}
             </div>
         );
     };
@@ -193,14 +248,49 @@ const Booking = () => {
                             ))}
                         </div>
 
-                        {/* Calendar */}
                         <div className="calendar-wrapper">
-                            <div className="calendar-header">
-                                <h3 className="heading-4">זמינות עבור {selectedRoom.name}</h3>
-                            </div>
-                            <div className="week-view">
-                                {weekDays.map(renderDayColumn)}
-                            </div>
+                            <section className="date-picker" aria-labelledby="date-heading">
+                                <h2 id="date-heading" className="step-heading">בחרו תאריך</h2>
+                                <div className="month-nav">
+                                    {/* The page reads right to left, so "earlier" points right. */}
+                                    <button
+                                        type="button"
+                                        className="month-nav-button"
+                                        onClick={() => setVisibleMonth(addMonths(visibleMonth, -1))}
+                                        disabled={!hasEarlierMonth}
+                                        aria-label="החודש הקודם"
+                                    >
+                                        <ChevronRight aria-hidden="true" />
+                                    </button>
+                                    <span className="month-name" aria-live="polite">
+                                        {visibleMonth.toLocaleDateString("he-IL", { month: "long", year: "numeric" })}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        className="month-nav-button"
+                                        onClick={() => setVisibleMonth(addMonths(visibleMonth, 1))}
+                                        disabled={!hasLaterMonth}
+                                        aria-label="החודש הבא"
+                                    >
+                                        <ChevronLeft aria-hidden="true" />
+                                    </button>
+                                </div>
+                                <div className="month-grid weekday-row" aria-hidden="true">
+                                    {WEEKDAY_INITIALS.map(initial => <span key={initial}>{initial}</span>)}
+                                </div>
+                                <div className="month-grid">
+                                    {monthCells(visibleMonth).map(renderDay)}
+                                </div>
+                                <p className="picker-hint">אפשר להזמין עד שלושה חודשים מראש.</p>
+                            </section>
+
+                            <section className="slot-picker" aria-labelledby="slot-heading">
+                                <h2 id="slot-heading" className="step-heading">בחרו שעה</h2>
+                                <p className="chosen-date">
+                                    {selectedRoom.name}, {selectedDate.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
+                                </p>
+                                {renderSlots()}
+                            </section>
                         </div>
                     </>
                 ) : (

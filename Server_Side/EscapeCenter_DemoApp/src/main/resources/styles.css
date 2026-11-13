@@ -403,7 +403,187 @@
     -fx-translate-y: -1;
 }
 
+/* A game that shares minutes with a game in another room. The text names the minutes; the border makes it findable. */
+.slot-overlap {
+    -fx-border-color: #f59e0b;
+    -fx-border-width: 3;
+    -fx-border-radius: 8;
+    -fx-background-insets: 0;
+}
+
+/* ---- Day strip: picks the day the all-rooms timeline shows ---- */
+.day-strip {
+    -fx-spacing: 8;
+    -fx-alignment: center;
+}
+
+.day-chip {
+    -fx-background-color: #1e293b;
+    -fx-text-fill: #cbd5e1;
+    -fx-border-color: #334155;
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-padding: 8 16;
+    -fx-font-size: 13px;
+    -fx-text-alignment: center;
+    -fx-cursor: hand;
+}
+
+.day-chip:hover {
+    -fx-border-color: #7c3aed;
+}
+
+.day-chip-today {
+    -fx-border-color: #a78bfa;
+}
+
+.day-chip-active {
+    -fx-background-color: #7c3aed;
+    -fx-text-fill: white;
+    -fx-border-color: #7c3aed;
+    -fx-font-weight: bold;
+}
+
+.day-column-today {
+    -fx-border-color: #a78bfa;
+    -fx-border-width: 2;
+}
+
+/* ---- Overlap panel ---- */
+.overlap-panel {
+    -fx-background-color: #1e293b;
+    -fx-background-radius: 12;
+    -fx-border-color: #334155;
+    -fx-border-radius: 12;
+    -fx-padding: 14;
+}
+
+.overlap-panel-title {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #fbbf24;
+}
+
+.overlap-scroll,
+.overlap-scroll > .viewport {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+}
+
+.overlap-none {
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 13px;
+}
+
+.overlap-item {
+    -fx-background-color: rgba(245, 158, 11, 0.12);
+    -fx-text-fill: #fde68a;
+    -fx-border-color: #f59e0b;
+    -fx-border-width: 1;
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+    -fx-padding: 8 10;
+    -fx-font-size: 12px;
+    -fx-alignment: center-right;
+    -fx-text-alignment: right;
+    -fx-cursor: hand;
+}
+
+.overlap-item:hover {
+    -fx-background-color: rgba(245, 158, 11, 0.25);
+}
+
+/* ---- Day timeline ---- */
+.timeline-header {
+    -fx-background-color: #0f172a;
+    -fx-border-color: transparent transparent #334155 transparent;
+}
+
+.timeline-room-header {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #c4b5fd;
+    -fx-alignment: center;
+    -fx-padding: 10 4;
+}
+
+.timeline-hour-label {
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 12px;
+    -fx-alignment: center;
+}
+
+.timeline-hour-line {
+    -fx-background-color: #263449;
+    -fx-pref-height: 1;
+    -fx-max-height: 1;
+}
+
+.timeline-column {
+    -fx-border-color: #263449;
+    -fx-border-width: 0 0 0 1;
+}
+
+.timeline-block {
+    -fx-font-size: 12px;
+    -fx-alignment: top-center;
+    -fx-text-alignment: center;
+    -fx-padding: 6 8;
+    -fx-wrap-text: true;
+    -fx-background-radius: 8;
+}
+
+.timeline-block.slot-available {
+    -fx-background-color: rgba(15, 23, 42, 0.55);
+    -fx-border-color: #334155;
+    -fx-border-style: dashed;
+    -fx-border-radius: 8;
+}
+
+/* Where games of different rooms run together: a tint across every room, edged in amber, with the minutes named. */
+.overlap-band {
+    -fx-background-color: rgba(245, 158, 11, 0.20);
+    -fx-border-color: #f59e0b transparent #f59e0b transparent;
+    -fx-border-width: 1 0 1 0;
+}
+
+.overlap-pill {
+    -fx-background-color: #f59e0b;
+    -fx-text-fill: #1c1917;
+    -fx-font-size: 12px;
+    -fx-font-weight: bold;
+    -fx-text-alignment: center;
+    -fx-alignment: center;
+    -fx-background-radius: 6;
+    -fx-padding: 3 4;
+}
+
+.now-line {
+    -fx-background-color: #f87171;
+}
+
 /* ---- Booking Modal ---- */
+.booking-summary {
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f8fafc;
+    -fx-background-color: #0f172a;
+    -fx-background-radius: 8;
+    -fx-border-color: #334155;
+    -fx-border-radius: 8;
+    -fx-padding: 10 14;
+}
+
+.booking-form .read-only-notes {
+    -fx-background-color: #1e293b;
+    -fx-text-fill: #cbd5e1;
+    -fx-border-style: dashed;
+}
+
+.booking-form .read-only-notes .content {
+    -fx-background-color: #1e293b;
+}
+
 .booking-form {
     -fx-padding: 20;
     -fx-vgap: 12;
@@ -487,13 +667,124 @@
     -fx-alignment: center-right;
     -fx-pref-width: 500;
     -fx-spacing: 6;
-    -fx-cursor: hand;
 }
 
 .client-card:hover {
     -fx-border-color: #7c3aed;
-    -fx-effect: dropshadow(gaussian, rgba(124, 58, 237, 0.15), 12, 0, 0, 2);
-    -fx-translate-y: -2;
+}
+
+.client-actions {
+    -fx-padding: 8 0 0 0;
+    -fx-alignment: center-left;
+}
+
+.dialog-pane .header-panel .label {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f8fafc;
+}
+
+/* ---- Tables (booking history, reports) ---- */
+.table-view {
+    -fx-background-color: #0f172a;
+    -fx-border-color: #334155;
+    -fx-border-radius: 8;
+    -fx-background-radius: 8;
+}
+
+.table-view .column-header,
+.table-view .column-header-background,
+.table-view .filler {
+    -fx-background-color: #334155;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #f1f5f9;
+    -fx-font-weight: bold;
+}
+
+.table-row-cell {
+    -fx-background-color: #1e293b;
+    -fx-border-color: transparent transparent #334155 transparent;
+}
+
+.table-row-cell:odd {
+    -fx-background-color: #172033;
+}
+
+.table-row-cell:selected {
+    -fx-background-color: #4c1d95;
+}
+
+.table-cell {
+    -fx-text-fill: #e2e8f0;
+    -fx-padding: 8 10;
+}
+
+/* ================================================================
+   REPORTS
+   ================================================================ */
+.reports-pane {
+    -fx-spacing: 16;
+    -fx-padding: 8;
+}
+
+.reports-title {
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #f8fafc;
+}
+
+.reports-grid {
+    -fx-hgap: 0;
+    -fx-vgap: 0;
+    -fx-background-color: #1e293b;
+    -fx-background-radius: 12;
+    -fx-border-color: #334155;
+    -fx-border-radius: 12;
+    -fx-max-width: 720;
+}
+
+.reports-head {
+    -fx-text-fill: #cbd5e1;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-padding: 12 20;
+}
+
+.reports-period {
+    -fx-text-fill: #f1f5f9;
+    -fx-font-size: 15px;
+    -fx-font-weight: bold;
+    -fx-padding: 16 20 2 20;
+}
+
+.reports-range {
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 12px;
+    -fx-padding: 0 20 16 20;
+}
+
+.reports-number {
+    -fx-text-fill: #f8fafc;
+    -fx-font-size: 26px;
+    -fx-font-weight: bold;
+    -fx-padding: 12 20;
+}
+
+.reports-number-played {
+    -fx-text-fill: #c4b5fd;
+}
+
+.reports-row-divider {
+    -fx-background-color: #334155;
+    -fx-pref-height: 1;
+    -fx-max-height: 1;
+}
+
+.reports-note {
+    -fx-text-fill: #94a3b8;
+    -fx-font-size: 13px;
 }
 
 .client-name {
@@ -562,15 +853,6 @@
     -fx-alignment: center;
     -fx-border-color: #334155;
     -fx-border-width: 0 0 1 0;
-}
-
-.day-sub-header {
-    -fx-font-size: 12px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #94a3b8;
-    -fx-padding: 6 4 2 4;
-    -fx-background-color: rgba(51, 65, 85, 0.3);
-    -fx-background-radius: 4;
 }
 
 /* ---- Sync Indicator ---- */

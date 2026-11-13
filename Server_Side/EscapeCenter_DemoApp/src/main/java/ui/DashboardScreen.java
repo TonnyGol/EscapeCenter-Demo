@@ -29,14 +29,14 @@ public class DashboardScreen {
         VBox clientCard = createCard("👥", "ניהול לקוחות",
                 "חיפוש וצפייה בפרטי לקוחות");
         VBox reportsCard = createCard("📋", "דו\"חות",
-                "צפייה בנתונים סטטיסטיים — בקרוב");
+                "משחקים ששוחקו והוזמנו השבוע והחודש");
         VBox settingsCard = createCard("⚙️", "הגדרות",
                 "הגדרות מערכת — בקרוב");
 
         // Card actions
         bookingCard.setOnMouseClicked(e -> shell.navigateToBookings());
         clientCard.setOnMouseClicked(e -> shell.navigateToClients());
-        reportsCard.setOnMouseClicked(e -> showInfo("דו\"חות — בקרוב"));
+        reportsCard.setOnMouseClicked(e -> shell.navigateToReports());
         settingsCard.setOnMouseClicked(e -> showInfo("הגדרות — בקרוב"));
 
         // Grid layout (2×2)

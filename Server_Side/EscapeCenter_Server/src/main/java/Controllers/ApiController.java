@@ -3,6 +3,7 @@ package Controllers;
 import DataBaseService.BookingService;
 import DataBaseService.ClientsService;
 import DataBaseService.RoomService;
+import Requests.ClientDetails;
 import Requests.CreateBookingRequest;
 import Requests.UpdateBookingRequest;
 import Responses.ClientResponse;
@@ -90,5 +91,16 @@ public class ApiController {
     @GetMapping("/clients")
     public List<ClientResponse> searchClients(@RequestParam(required = false) String query) {
         return clientsService.searchClients(query);
+    }
+
+    @PutMapping("/clients/{id}")
+    public ResponseEntity<Void> updateClient(@PathVariable Long id, @Valid @RequestBody ClientDetails details) {
+        clientsService.updateClient(id, details);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/clients/{id}/bookings")
+    public List<StaffBookingResponse> getClientBookings(@PathVariable Long id) {
+        return bookingService.getClientBookings(id);
     }
 }

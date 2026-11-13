@@ -87,7 +87,7 @@ class ApiControllerWebTest {
     }
 
     private static BookingDetails bookingDetails() {
-        return new BookingDetails(4, "beginner", "", "red");
+        return new BookingDetails(4, "beginner", "", "red", null, null);
     }
 
     private MockHttpServletRequestBuilder withJson(MockHttpServletRequestBuilder request, Object body) throws Exception {

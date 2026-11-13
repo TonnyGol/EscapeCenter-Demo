@@ -2,6 +2,7 @@ package ui;
 
 import model.Booking;
 import model.BookingDetails;
+import model.BookingType;
 import model.Client;
 import model.CreateBookingRequest;
 import model.Room;
@@ -25,6 +26,7 @@ import java.time.*;
 import java.time.temporal.TemporalAdjusters;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Booking management screen — weekly calendar grid with room filter tabs,
@@ -32,8 +34,8 @@ import java.util.*;
  *
  * <ul>
  *   <li><b>Single room</b>: columns = days, rows = time slots (classic view)</li>
- *   <li><b>All rooms ("הכל")</b>: columns = rooms, with day+time rows nested inside
- *       so you can see parallel games across different rooms</li>
+ *   <li><b>All rooms ("הכל")</b>: one day at a time, columns = rooms and time running down the page,
+ *       so parallel games line up and the minutes they share are shaded (see {@link DayTimelineView})</li>
  * </ul>
  */
 public class BookingManagementScreen {
@@ -55,6 +57,13 @@ public class BookingManagementScreen {
     private static final int DAYS_IN_WEEK = 7;
     private static final String ALL_ROOMS_LABEL = "הכל";
     private static final String SAVE_FAILED_TITLE = "השמירה נכשלה";
+    private static final String OVERLAP_PREFIX = "⚠ חופף ";
+    private static final String TODAY_SUFFIX = " · היום";
+    private static final String NO_GAMES_LABEL = "אין משחקים";
+    private static final String ONE_GAME_LABEL = "משחק אחד";
+    private static final String GAMES_LABEL = " משחקים";
+    private static final DateTimeFormatter DAY_CHIP_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM");
+    private static final DateTimeFormatter MODAL_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     /** Polling interval in seconds for real-time sync. */
     private static final int POLL_INTERVAL_SECONDS = 10;
@@ -64,6 +73,10 @@ public class BookingManagementScreen {
     private HBox roomFilter;
     private ToggleGroup roomGroup;
     private LocalDate weekStart;
+    private LocalDate selectedDay; // the day the all-rooms view shows
+    private HBox dayStrip;
+    private ToggleButton allRoomsTab;
+    private final OverlapPanel overlapPanel = new OverlapPanel();
     private Label weekLabel;
     private Pane calendarContainer; // HBox for single-room, ScrollPane-wrapped GridPane for all-rooms
     private ScrollPane scrollPane;
@@ -81,6 +94,7 @@ public class BookingManagementScreen {
 
         // Start on current week (Sunday of this week)
         weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY));
+        selectedDay = LocalDate.now();
         reloadBookings();
 
         // ---- Toolbar: Week navigation ----
@@ -106,9 +120,9 @@ public class BookingManagementScreen {
         syncIndicator.getStyleClass().add("sync-indicator");
         syncIndicator.setTooltip(new Tooltip("סנכרון אוטומטי כל " + POLL_INTERVAL_SECONDS + " שניות"));
 
-        prevBtn.setOnAction(e -> { weekStart = weekStart.minusWeeks(1); reloadBookings(); rebuildCalendar(); });
-        nextBtn.setOnAction(e -> { weekStart = weekStart.plusWeeks(1); reloadBookings(); rebuildCalendar(); });
-        todayBtn.setOnAction(e -> { weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY)); reloadBookings(); rebuildCalendar(); });
+        prevBtn.setOnAction(e -> goToWeek(weekStart.minusWeeks(1)));
+        nextBtn.setOnAction(e -> goToWeek(weekStart.plusWeeks(1)));
+        todayBtn.setOnAction(e -> goToWeek(LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY))));
 
         HBox toolbar = new HBox(10, nextBtn, weekLabel, prevBtn, todayBtn, syncIndicator);
         toolbar.getStyleClass().add("booking-toolbar");
@@ -119,7 +133,7 @@ public class BookingManagementScreen {
         roomFilter.getStyleClass().add("room-filter-bar");
         roomFilter.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
-        ToggleButton allRoomsTab = createRoomTab(ALL_ROOMS_LABEL);
+        allRoomsTab = createRoomTab(ALL_ROOMS_LABEL);
         allRoomsTab.setSelected(true);
         allRoomsTab.getStyleClass().add("room-tab-active");
 
@@ -146,6 +160,11 @@ public class BookingManagementScreen {
             rebuildCalendar();
         });
 
+        // ---- Day strip (all-rooms view) ----
+        dayStrip = new HBox(8);
+        dayStrip.getStyleClass().add("day-strip");
+        dayStrip.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
+
         // ---- Calendar Container ----
         calendarContainer = new HBox(8);
         calendarContainer.getStyleClass().add("calendar-container");
@@ -154,11 +173,16 @@ public class BookingManagementScreen {
         scrollPane = new ScrollPane(calendarContainer);
         scrollPane.setFitToWidth(true);
         scrollPane.setFitToHeight(true);
-        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+        HBox.setHgrow(scrollPane, Priority.ALWAYS);
 
         rebuildCalendar();
 
-        VBox pane = new VBox(12, toolbar, roomFilter, scrollPane);
+        // In a right-to-left row the second child sits on the left, in the free space beside the calendar.
+        HBox calendarRow = new HBox(12, scrollPane, overlapPanel.node());
+        calendarRow.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
+        VBox.setVgrow(calendarRow, Priority.ALWAYS);
+
+        VBox pane = new VBox(12, toolbar, roomFilter, dayStrip, calendarRow);
         pane.getStyleClass().add("booking-pane");
         pane.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
@@ -319,6 +343,16 @@ public class BookingManagementScreen {
     // Calendar
     // ================================================================
 
+    /** Shows another week; the chosen day becomes today if it is in that week, otherwise the week's first day. */
+    private void goToWeek(LocalDate newWeekStart) {
+        weekStart = newWeekStart;
+        LocalDate today = LocalDate.now();
+        boolean todayIsInWeek = !today.isBefore(weekStart) && !today.isAfter(weekStart.plusDays(DAYS_IN_WEEK - 1));
+        selectedDay = todayIsInWeek ? today : weekStart;
+        reloadBookings();
+        rebuildCalendar();
+    }
+
     private void rebuildCalendar() {
         slotButtons.clear();
 
@@ -328,70 +362,74 @@ public class BookingManagementScreen {
                 weekEnd.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
         );
 
-        if (selectedRoom == null) {
-            // ALL ROOMS mode: columns = rooms, rows = days × time slots
+        boolean allRooms = selectedRoom == null;
+        dayStrip.setVisible(allRooms);
+        dayStrip.setManaged(allRooms);
+        if (allRooms) {
+            // ALL ROOMS mode: one day, columns = rooms, time running down
+            rebuildDayStrip();
             buildAllRoomsView();
         } else {
             // SINGLE ROOM mode: columns = days, rows = time slots
             buildSingleRoomView();
         }
+        overlapPanel.show(OverlapPanel.entries(bookings.values(), selectedRoom), this::dayLabel, this::showOverlapDay);
     }
 
-    /**
-     * All-rooms view: each column is a ROOM, each row within is a day header
-     * followed by time slots. This lets you see parallel games across rooms.
-     */
-    private void buildAllRoomsView() {
-        HBox container = new HBox(8);
-        container.getStyleClass().add("calendar-container");
-        container.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
+    private String dayLabel(LocalDate date) {
+        return "יום " + HEBREW_DAYS.get(date.getDayOfWeek()) + " " + date.format(DAY_CHIP_DATE_FORMAT);
+    }
 
-        for (Room roomEntity : rooms) {
-            String room = roomEntity.name();
-            VBox roomColumn = new VBox(4);
-            roomColumn.getStyleClass().add("day-column");
-            roomColumn.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
-            roomColumn.setMinWidth(160);
-
-            // Room header
-            Label roomHeader = new Label("🚪 " + room);
-            roomHeader.getStyleClass().add("room-column-header");
-            roomColumn.getChildren().add(roomHeader);
-
-            // For each day in the week
-            for (int i = 0; i < 7; i++) {
-                LocalDate date = weekStart.plusDays(i);
-                boolean isToday = date.equals(LocalDate.now());
-
-                // Day sub-header
-                Label dayLabel = new Label(
-                        HEBREW_DAYS.get(date.getDayOfWeek()) + " " +
-                        date.format(DateTimeFormatter.ofPattern("dd/MM")) +
-                        (isToday ? " 📍" : ""));
-                dayLabel.getStyleClass().add("day-sub-header");
-                roomColumn.getChildren().add(dayLabel);
-
-                // Time slots for this room on this day
-                for (LocalTime start : gameStarts.getOrDefault(room, List.of())) {
-                    LocalTime end = start.plusMinutes(roomEntity.durationMinutes());
-                    String timeRange = start.format(timeFormat) + "-" + end.format(timeFormat);
-                    String key = date.atTime(start).toString();
-
-                    Button slotBtn = createSlotButton(date, room, key, timeRange);
-                    roomColumn.getChildren().add(slotBtn);
-                    slotButtons.put(key + "/" + room, slotBtn);
-                }
-
-                // Small spacer between days
-                Region daySpacer = new Region();
-                daySpacer.setMinHeight(6);
-                roomColumn.getChildren().add(daySpacer);
-            }
-
-            container.getChildren().add(roomColumn);
+    /** The day timeline is where an overlap is shown in full, so a click on a message goes there. */
+    private void showOverlapDay(LocalDate date) {
+        selectedDay = date;
+        if (selectedRoom == null) {
+            rebuildCalendar();
+        } else {
+            allRoomsTab.setSelected(true);
         }
+    }
 
-        scrollPane.setContent(container);
+    private void rebuildDayStrip() {
+        dayStrip.getChildren().clear();
+        for (int i = 0; i < DAYS_IN_WEEK; i++) {
+            LocalDate date = weekStart.plusDays(i);
+            long games = bookings.values().stream().filter(booking -> booking.start().toLocalDate().equals(date)).count();
+            Button chip = new Button(HEBREW_DAYS.get(date.getDayOfWeek()) + "  " + date.format(DAY_CHIP_DATE_FORMAT)
+                    + "\n" + gamesLabel(games));
+            chip.getStyleClass().add("day-chip");
+            if (date.equals(selectedDay)) chip.getStyleClass().add("day-chip-active");
+            if (date.equals(LocalDate.now())) chip.getStyleClass().add("day-chip-today");
+            chip.setAccessibleText(dayLabel(date));
+            chip.setOnAction(e -> {
+                selectedDay = date;
+                rebuildCalendar();
+            });
+            dayStrip.getChildren().add(chip);
+        }
+    }
+
+    private static String gamesLabel(long games) {
+        if (games == 0) return NO_GAMES_LABEL;
+        return games == 1 ? ONE_GAME_LABEL : games + GAMES_LABEL;
+    }
+
+    /** All-rooms view: the chosen day as a timeline with one column per room. */
+    private void buildAllRoomsView() {
+        List<Booking> dayBookings = bookings.values().stream()
+                .filter(booking -> booking.start().toLocalDate().equals(selectedDay))
+                .toList();
+        scrollPane.setContent(DayTimelineView.build(rooms, gameStarts, dayBookings, selectedDay,
+                this::createTimelineSlot, scrollPane));
+    }
+
+    private Button createTimelineSlot(LocalDate date, String room, LocalTime start) {
+        LocalTime end = start.plusMinutes(roomNamed(room).durationMinutes());
+        String timeRange = start.format(timeFormat) + "-" + end.format(timeFormat);
+        String key = date.atTime(start).toString();
+        Button slotBtn = createSlotButton(date, room, key, timeRange, true);
+        slotButtons.put(key + "/" + room, slotBtn);
+        return slotBtn;
     }
 
     /**
@@ -416,10 +454,11 @@ public class BookingManagementScreen {
         dayColumn.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
         boolean isToday = date.equals(LocalDate.now());
+        if (isToday) dayColumn.getStyleClass().add("day-column-today");
         Label dayLabel = new Label(
                 HEBREW_DAYS.get(date.getDayOfWeek()) + "\n"
                 + date.format(DateTimeFormatter.ofPattern("dd/MM"))
-                + (isToday ? " 📍" : ""));
+                + (isToday ? TODAY_SUFFIX : ""));
         dayLabel.getStyleClass().add("day-label");
         dayLabel.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
         dayColumn.getChildren().add(dayLabel);
@@ -443,7 +482,7 @@ public class BookingManagementScreen {
             String timeRange = start.format(timeFormat) + "-" + end.format(timeFormat);
             String key = date.atTime(start).toString();
 
-            Button slotBtn = createSlotButton(date, room, key, timeRange);
+            Button slotBtn = createSlotButton(date, room, key, timeRange, false);
             roomBox.getChildren().add(slotBtn);
             slotButtons.put(key + "/" + room, slotBtn);
         }
@@ -455,29 +494,39 @@ public class BookingManagementScreen {
     // Slot buttons
     // ================================================================
 
-    private Button createSlotButton(LocalDate date, String room, String key, String timeRange) {
+    /**
+     * @param onTimeline true when the slot sits on the day timeline, where a shaded band already shows the overlap
+     *                   and the slot has room for the booking type instead of an overlap note
+     */
+    private Button createSlotButton(LocalDate date, String room, String key, String timeRange, boolean onTimeline) {
         Button slotBtn = new Button(timeRange);
         slotBtn.setMinWidth(130);
 
         Booking existing = bookings.get(key + "/" + room);
 
         if (existing != null) {
-            slotBtn.setText(timeRange + "\n" + existing.firstName() + " " + existing.lastName());
+            String overlapNote = overlapNote(existing);
+            String shownNote = onTimeline ? "" : overlapNote;
+            String typeLine = onTimeline && typeOf(existing) != BookingType.CLIENT ? "\n" + typeOf(existing) : "";
+            slotBtn.setText(timeRange + "\n" + existing.firstName() + " " + existing.lastName() + typeLine
+                    + (shownNote.isEmpty() ? "" : "\n" + shownNote));
             // Color is persisted on the server — always use the server value
             String color = existing.color() != null ? existing.color() : "#fecaca";
             slotBtn.setStyle("-fx-background-color: " + color + ";");
             slotBtn.getStyleClass().add("slot-booked");
+            if (!shownNote.isEmpty()) slotBtn.getStyleClass().add("slot-overlap");
             slotBtn.setTooltip(new Tooltip(
                     room + " | " + timeRange + "\n" +
-                    existing.firstName() + " " + existing.lastName() + "\n" +
-                    "משתתפים: " + existing.participants()));
+                    existing.firstName() + " " + existing.lastName() + " (" + typeOf(existing) + ")\n" +
+                    "משתתפים: " + existing.participants()
+                    + (overlapNote.isEmpty() ? "" : "\n" + overlapNote)));
         } else {
             slotBtn.getStyleClass().add("slot-available");
             slotBtn.setTooltip(new Tooltip(room + " | " + timeRange + " — פנוי"));
         }
 
         slotBtn.setAccessibleText(room + " " + timeRange +
-                (existing != null ? " הזמנה: " + existing.firstName() : " פנוי"));
+                (existing != null ? " הזמנה: " + existing.firstName() + " " + overlapNote(existing) : " פנוי"));
 
         String currentColor = (existing != null && existing.color() != null)
                 ? existing.color() : "#fecaca";
@@ -485,6 +534,28 @@ public class BookingManagementScreen {
         slotBtn.setOnAction(e -> openBookingModal(key, date, timeRange, slotBtn, room, currentColor));
 
         return slotBtn;
+    }
+
+    /**
+     * Names the minutes this game shares with games in other rooms, one line per room, e.g. "⚠ חופף 19:00-19:15 · נרקוס".
+     * Empty when it shares none. It compares real start and end times, so it stays right when rooms run different schedules.
+     */
+    private String overlapNote(Booking booking) {
+        return bookings.values().stream()
+                .filter(other -> !other.roomName().equals(booking.roomName()) && booking.overlaps(other))
+                .sorted(Comparator.comparing(Booking::start))
+                .map(other -> {
+                    LocalDateTime sharedStart = booking.start().isAfter(other.start()) ? booking.start() : other.start();
+                    LocalDateTime sharedEnd = booking.end().isBefore(other.end()) ? booking.end() : other.end();
+                    return OVERLAP_PREFIX + sharedStart.format(timeFormat) + "-" + sharedEnd.format(timeFormat)
+                            + " · " + other.roomName();
+                })
+                .collect(Collectors.joining("\n"));
+    }
+
+    // Bookings made before the type existed have none in old server answers.
+    private static BookingType typeOf(Booking booking) {
+        return booking.type() != null ? booking.type() : BookingType.CLIENT;
     }
 
     private ToggleButton createRoomTab(String text) {
@@ -512,8 +583,21 @@ public class BookingManagementScreen {
         grid.getStyleClass().add("booking-form");
         grid.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
+        Label summary = new Label("חדר: " + roomName + "     תאריך: יום " + HEBREW_DAYS.get(date.getDayOfWeek())
+                + " " + date.format(MODAL_DATE_FORMAT) + "     שעה: " + timeRange);
+        summary.getStyleClass().add("booking-summary");
+        summary.setMaxWidth(Double.MAX_VALUE);
+
         TextField nameField = new TextField();
         nameField.setAccessibleText("שם פרטי");
+
+        ComboBox<BookingType> typeBox = new ComboBox<>();
+        typeBox.getItems().addAll(BookingType.values());
+        typeBox.setValue(BookingType.CLIENT);
+        typeBox.setAccessibleText("סוג הזמנה");
+        typeBox.setTooltip(new Tooltip("סוג ההזמנה"));
+        HBox nameAndType = new HBox(8, nameField, typeBox);
+        HBox.setHgrow(nameField, Priority.ALWAYS);
         TextField lastNameField = new TextField();
         lastNameField.setAccessibleText("שם משפחה");
         TextField phoneField = new TextField();
@@ -531,9 +615,18 @@ public class BookingManagementScreen {
         experienceBox.setValue("מתחילים");
         experienceBox.setAccessibleText("רמת ניסיון");
 
-        TextArea notesArea = new TextArea();
-        notesArea.setPrefRowCount(3);
-        notesArea.setAccessibleText("הערות");
+        // What the client wrote when booking. Staff read it but write their own notes below.
+        TextArea clientNotesArea = new TextArea();
+        clientNotesArea.setPrefRowCount(2);
+        clientNotesArea.setEditable(false);
+        clientNotesArea.setFocusTraversable(false);
+        clientNotesArea.getStyleClass().add("read-only-notes");
+        clientNotesArea.setAccessibleText("הערות הלקוח, לקריאה בלבד");
+
+        TextArea internalNotesArea = new TextArea();
+        internalNotesArea.setPrefRowCount(3);
+        internalNotesArea.setPromptText("נראה רק לצוות");
+        internalNotesArea.setAccessibleText("הערות פנימיות");
 
         if (existing != null) {
             nameField.setText(existing.firstName());
@@ -542,16 +635,23 @@ public class BookingManagementScreen {
             emailField.setText(existing.email());
             participantsBox.setValue(existing.participants());
             experienceBox.setValue(existing.experience());
-            notesArea.setText(existing.notes());
+            typeBox.setValue(typeOf(existing));
+            clientNotesArea.setText(existing.notes());
+            internalNotesArea.setText(existing.internalNotes());
         }
 
-        grid.add(new Label("שם פרטי:"), 0, 0);        grid.add(nameField, 1, 0);
-        grid.add(new Label("שם משפחה:"), 0, 1);        grid.add(lastNameField, 1, 1);
-        grid.add(new Label("טלפון:"), 0, 2);           grid.add(phoneField, 1, 2);
-        grid.add(new Label("אימייל:"), 0, 3);           grid.add(emailField, 1, 3);
-        grid.add(new Label("מספר משתתפים:"), 0, 4);     grid.add(participantsBox, 1, 4);
-        grid.add(new Label("רמת ניסיון:"), 0, 5);       grid.add(experienceBox, 1, 5);
-        grid.add(new Label("הערות:"), 0, 6);             grid.add(notesArea, 1, 6);
+        grid.add(summary, 0, 0, 2, 1);
+        grid.add(new Label("שם פרטי וסוג:"), 0, 1);     grid.add(nameAndType, 1, 1);
+        grid.add(new Label("שם משפחה:"), 0, 2);        grid.add(lastNameField, 1, 2);
+        grid.add(new Label("טלפון:"), 0, 3);           grid.add(phoneField, 1, 3);
+        grid.add(new Label("אימייל:"), 0, 4);           grid.add(emailField, 1, 4);
+        grid.add(new Label("מספר משתתפים:"), 0, 5);     grid.add(participantsBox, 1, 5);
+        grid.add(new Label("רמת ניסיון:"), 0, 6);       grid.add(experienceBox, 1, 6);
+        // A booking that staff are creating has no client notes yet, so the row would only be an empty box.
+        if (existing != null) {
+            grid.add(new Label("הערות הלקוח:"), 0, 7);  grid.add(clientNotesArea, 1, 7);
+        }
+        grid.add(new Label("הערות פנימיות:"), 0, 8);    grid.add(internalNotesArea, 1, 8);
 
         dialog.getDialogPane().setContent(grid);
 
@@ -599,10 +699,11 @@ public class BookingManagementScreen {
 
         dialog.setResultConverter(button -> {
             if (button.getButtonData() == ButtonBar.ButtonData.OK_DONE) {
-                Client client = new Client(nameField.getText(), lastNameField.getText(),
+                Client client = new Client(null, nameField.getText(), lastNameField.getText(),
                         phoneField.getText(), emailField.getText());
                 BookingDetails details = new BookingDetails(participantsBox.getValue(), experienceBox.getValue(),
-                        notesArea.getText(), selectedColor[0]);
+                        existing == null ? null : existing.notes(), selectedColor[0],
+                        typeBox.getValue(), internalNotesArea.getText());
 
                 Optional<String> failure = existing == null
                         ? ApiService.getInstance().addBooking(

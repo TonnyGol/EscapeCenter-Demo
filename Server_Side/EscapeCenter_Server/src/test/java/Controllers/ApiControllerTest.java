@@ -1,6 +1,7 @@
 package Controllers;
 
 import App.EscapeCenterServer;
+import Entities.BookingType;
 import Entities.WorkerRole;
 import Requests.BookingDetails;
 import Requests.ClientDetails;
@@ -80,6 +81,8 @@ class ApiControllerTest extends MySqlIntegrationTest {
     private static final LocalDateTime BEYOND_HORIZON_START = LocalDateTime.of(2200, 1, 1, 10, 0);
     private static final int RACING_REQUESTS = 10;
     private static final String RACE_PHONE_PREFIX = "054000000";
+    private static final String STAFF_NOTE = "paid a deposit";
+    private static final String EDITED_EMAIL = "edited@example.com";
     private static final String STAFF_USER = "ApiTestStaff";
     private static final String STAFF_PASSWORD = "staff-test-password";
 
@@ -374,6 +377,70 @@ class ApiControllerTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$[?(@.firstName == '" + CLIENT_FIRST_NAME + "')].phoneNumber", contains(PHONE)));
     }
 
+    @Test
+    void customer_cannotSetTypeOrInternalNotes_andStaffEdit_keepsTheClientsNote() throws Exception {
+        mockMvc.perform(jsonPost(BOOKINGS_URL, detailsJson("client note", BookingType.COMPANY, "forged")))
+                .andExpect(status().isCreated());
+        mockMvc.perform(asAdmin(get(staffListUrl())))
+                .andExpect(jsonPath("$[0].type").value(BookingType.CLIENT.name()))
+                .andExpect(jsonPath("$[0].internalNotes").doesNotExist());
+
+        String staffEdit = objectMapper.writeValueAsString(new UpdateBookingRequest(
+                new ClientDetails(CLIENT_FIRST_NAME, "ApiLast", PHONE, "api@example.com"),
+                new BookingDetails(2, "beginner", "staff tried to overwrite", "#ffffff", BookingType.TEAM_BUILDING, STAFF_NOTE)));
+        mockMvc.perform(asAdmin(put(BOOKINGS_URL + "/" + bookingId())).contentType(MediaType.APPLICATION_JSON)
+                .content(staffEdit)).andExpect(status().isNoContent());
+
+        mockMvc.perform(asAdmin(get(staffListUrl())))
+                .andExpect(jsonPath("$[0].type").value(BookingType.TEAM_BUILDING.name()))
+                .andExpect(jsonPath("$[0].internalNotes").value(STAFF_NOTE))
+                .andExpect(jsonPath("$[0].notes").value("client note"));
+    }
+
+    @Test
+    void clientHistory_listsTheClientsBookings_newestGameFirst() throws Exception {
+        mockMvc.perform(jsonPost(BOOKINGS_URL, createJson(FIRST_SLOT, CLIENT_FIRST_NAME, 2))).andExpect(status().isCreated());
+        mockMvc.perform(jsonPost(BOOKINGS_URL, createJson(SECOND_SLOT, CLIENT_FIRST_NAME, 2))).andExpect(status().isCreated());
+
+        mockMvc.perform(asAdmin(get(CLIENTS_URL + "/" + clientId(PHONE) + "/bookings")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].startAt").value(containsString("T12:00")))
+                .andExpect(jsonPath("$[0].createdAt").exists());
+    }
+
+    @Test
+    void updateClient_changesTheDetails_andRefusesAnotherClientsPhone() throws Exception {
+        mockMvc.perform(jsonPost(BOOKINGS_URL, createJson(roomId, FIRST_SLOT, CLIENT_FIRST_NAME, PHONE, 2))).andExpect(status().isCreated());
+        mockMvc.perform(jsonPost(BOOKINGS_URL, createJson(roomId, SECOND_SLOT, CLIENT_FIRST_NAME, CHANGED_PHONE, 2))).andExpect(status().isCreated());
+        String clientUrl = CLIENTS_URL + "/" + clientId(PHONE);
+
+        mockMvc.perform(asAdmin(put(clientUrl)).contentType(MediaType.APPLICATION_JSON)
+                .content(clientJson(CHANGED_PHONE, "api@example.com"))).andExpect(status().isConflict());
+
+        mockMvc.perform(asAdmin(put(clientUrl)).contentType(MediaType.APPLICATION_JSON)
+                .content(clientJson(PHONE, EDITED_EMAIL))).andExpect(status().isNoContent());
+        mockMvc.perform(asAdmin(get(CLIENTS_URL + "?query=" + PHONE)))
+                .andExpect(jsonPath("$[0].email").value(EDITED_EMAIL));
+
+        mockMvc.perform(put(clientUrl).contentType(MediaType.APPLICATION_JSON)
+                .content(clientJson(PHONE, EDITED_EMAIL))).andExpect(status().isUnauthorized());
+    }
+
+    private Long clientId(String phoneNumber) {
+        return jdbcTemplate.queryForObject("SELECT id FROM clients WHERE phone = ?", Long.class, phoneNumber);
+    }
+
+    private String clientJson(String phoneNumber, String email) throws Exception {
+        return objectMapper.writeValueAsString(new ClientDetails(CLIENT_FIRST_NAME, "ApiLast", phoneNumber, email));
+    }
+
+    private String detailsJson(String notes, BookingType type, String internalNotes) throws Exception {
+        return objectMapper.writeValueAsString(new CreateBookingRequest(roomId, FIRST_SLOT,
+                new ClientDetails(CLIENT_FIRST_NAME, "ApiLast", PHONE, "api@example.com"),
+                new BookingDetails(2, "beginner", notes, "#ffffff", type, internalNotes)));
+    }
+
     private String availabilityUrl() {
         return ROOMS_URL + "/" + roomId + "/availability?date=" + DAY;
     }
@@ -417,7 +484,7 @@ class ApiControllerTest extends MySqlIntegrationTest {
             throws Exception {
         return objectMapper.writeValueAsString(new CreateBookingRequest(room, startAt,
                 new ClientDetails(firstName, "ApiLast", phoneNumber, "api@example.com"),
-                new BookingDetails(participants, "beginner", "note", "#ffffff")));
+                new BookingDetails(participants, "beginner", "note", "#ffffff", null, null)));
     }
 
     private String updateJson(String phoneNumber) throws Exception {
@@ -427,6 +494,6 @@ class ApiControllerTest extends MySqlIntegrationTest {
     private String updateJson(String phoneNumber, int participants) throws Exception {
         return objectMapper.writeValueAsString(new UpdateBookingRequest(
                 new ClientDetails(CLIENT_FIRST_NAME, "ApiLast", phoneNumber, "api@example.com"),
-                new BookingDetails(participants, "beginner", "note", "#ffffff")));
+                new BookingDetails(participants, "beginner", "note", "#ffffff", null, null)));
     }
 }

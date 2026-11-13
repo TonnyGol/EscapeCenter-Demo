@@ -22,4 +22,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             + "and (:roomId is null or b.room.id = :roomId) order by b.startAt")
     List<Booking> findInRange(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to,
                               @Param("roomId") Long roomId);
+
+    @EntityGraph(attributePaths = {"client", "room"})
+    List<Booking> findByClientIdOrderByStartAtDesc(Long clientId);
 }

@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import model.Booking;
 import model.BookingDetails;
+import model.BookingType;
 import model.Client;
 import model.CreateBookingRequest;
 import model.Room;
@@ -60,8 +61,8 @@ class ApiServiceTest {
     private static final String ROOM_SLOTS = "GET /api/rooms/1/availability";
     private static final String PHONE = "0501234567";
     private static final String BOOKING_SLOT_KEY = "2099-01-01T10:00/Vault";
-    private static final Client DANA = new Client("Dana", "Levi", PHONE, null);
-    private static final BookingDetails DETAILS = new BookingDetails(4, "beginner", "", "red");
+    private static final Client DANA = new Client(null, "Dana", "Levi", PHONE, null);
+    private static final BookingDetails DETAILS = new BookingDetails(4, "beginner", "", "red", BookingType.CLIENT, null);
     private static final CreateBookingRequest NEW_BOOKING = new CreateBookingRequest(1L, "2099-01-01T10:00", DANA, DETAILS);
     private static final LocalDate DAY = LocalDate.of(2099, 1, 1);
 

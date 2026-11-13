@@ -18,7 +18,10 @@ public record Booking(
         int participants,
         String experience,
         String notes,
-        String color
+        String color,
+        BookingType type,
+        String internalNotes,
+        String createdAt
 ) {
     /** Key the calendar uses to find the booking of a slot: start time, then room. */
     public String slotKey() {
@@ -26,11 +29,25 @@ public record Booking(
     }
 
     public BookingDetails details() {
-        return new BookingDetails(participants, experience, notes, color);
+        return new BookingDetails(participants, experience, notes, color, type, internalNotes);
     }
 
     public Booking withColor(String newColor) {
-        return new Booking(id, roomName, startAt, endAt, client, participants, experience, notes, newColor);
+        return new Booking(id, roomName, startAt, endAt, client, participants, experience, notes, newColor,
+                type, internalNotes, createdAt);
+    }
+
+    public LocalDateTime start() {
+        return LocalDateTime.parse(startAt);
+    }
+
+    public LocalDateTime end() {
+        return LocalDateTime.parse(endAt);
+    }
+
+    /** True when the two games share some time. A game that starts exactly when the other ends does not overlap. */
+    public boolean overlaps(Booking other) {
+        return start().isBefore(other.end()) && other.start().isBefore(end());
     }
 
     public String room() {

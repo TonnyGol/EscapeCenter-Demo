@@ -11,6 +11,8 @@ import java.util.Optional;
 public interface ClientRepository extends JpaRepository<Client, Long> {
     Optional<Client> findByPhoneNumber(String phoneNumber);
 
+    boolean existsByPhoneNumberAndIdNot(String phoneNumber, Long id);
+
     @Query("select c from Client c where lower(c.firstName) like lower(concat('%', :query, '%')) "
             + "or lower(c.lastName) like lower(concat('%', :query, '%')) "
             + "or c.phoneNumber like concat('%', :query, '%')")
