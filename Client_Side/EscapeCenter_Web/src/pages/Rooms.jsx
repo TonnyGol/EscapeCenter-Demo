@@ -1,5 +1,6 @@
 import React from 'react';
 import RoomCard from '../RoomCard';
+import PageTitle from '../PageTitle';
 import { ROOMS } from '../roomsData';
 import { useApiRooms } from '../useApiRooms';
 import './Rooms.css';
@@ -9,6 +10,7 @@ const Rooms = () => {
 
     return (
     <div className="rooms-page">
+        <PageTitle>חדרי הבריחה</PageTitle>
         <div className="container">
             <header className="rooms-header">
                 <h1 className="heading-1">חדרי הבריחה שלנו</h1>

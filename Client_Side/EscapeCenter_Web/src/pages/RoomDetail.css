@@ -3,15 +3,6 @@
     padding: var(--space-3xl) 0;
 }
 
-.room-missing {
-    padding-block: var(--space-4xl);
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-lg);
-}
-
 .room-detail-header {
     display: grid;
     grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);

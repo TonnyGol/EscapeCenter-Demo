@@ -120,9 +120,16 @@
 }
 
 html {
+  accent-color: var(--color-accent-primary);
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Selected text takes the accent, so on a room page it takes the room's colour. */
+::selection {
+  background: var(--color-accent-primary);
+  color: var(--color-on-accent);
 }
 
 body {

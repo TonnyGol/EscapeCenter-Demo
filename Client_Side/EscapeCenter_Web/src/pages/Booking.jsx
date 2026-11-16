@@ -8,6 +8,7 @@ import { ROOMS } from "../roomsData";
 import { API_URL } from "../api";
 import BookingConfirmation from "./BookingConfirmation";
 import BookingDialog from "./BookingDialog";
+import PageTitle from "../PageTitle";
 import { EMPTY_FORM, FIELD_ORDER, clampParticipants, fieldId, totalPrice, validateForm } from "./bookingForm";
 import "./Booking.css";
 
@@ -22,6 +23,9 @@ const BOOKING_COLOR = "#fecaca";
 const MONTHS_BOOKABLE_AHEAD = 3;
 const WEEKDAY_INITIALS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
 const LOADING = "loading";
+const CONFIRMATION_TITLE = "ההזמנה אושרה";
+const ROOMS_LOADING_MESSAGE = "טוענים את החדרים…";
+const SERVER_UNREACHABLE_MESSAGE = "לא ניתן להתחבר לשרת. אנא נסה שוב מאוחר יותר.";
 const READY = "ready";
 const FAILED = "failed";
 
@@ -97,7 +101,7 @@ const Booking = () => {
     const [searchParams] = useSearchParams();
     const preSelectedRoom = searchParams.get('room');
 
-    const [isConnected, setIsConnected] = useState(false);
+    const [roomsStatus, setRoomsStatus] = useState(LOADING);
     const [rooms, setRooms] = useState([]);
     const [selectedRoom, setSelectedRoom] = useState(null);
     const today = useMemo(startOfToday, []);
@@ -134,11 +138,11 @@ const Booking = () => {
             .then(res => {
                 setRooms(res.data);
                 setSelectedRoom(res.data.find(room => room.name === preSelectedRoom) || res.data[0] || null);
-                setIsConnected(true);
+                setRoomsStatus(READY);
             })
             .catch(err => {
                 console.error("Error loading rooms", err);
-                setIsConnected(false);
+                setRoomsStatus(FAILED);
             });
     }, [preSelectedRoom]);
 
@@ -292,6 +296,7 @@ const Booking = () => {
     if (confirmation) {
         return (
             <div className="booking-page" data-room={themeKeyOf(confirmation.roomName)}>
+                <PageTitle>{CONFIRMATION_TITLE}</PageTitle>
                 <div className="container">
                     <BookingConfirmation confirmation={confirmation} onBookAnother={bookAnother} />
                 </div>
@@ -301,6 +306,7 @@ const Booking = () => {
 
     return (
         <div className="booking-page" data-room={selectedRoom ? themeKeyOf(selectedRoom.name) : undefined}>
+            <PageTitle>הזמנת חדר</PageTitle>
             <div className="container">
                 <div className="booking-header">
                     <h1 className="heading-1">הזמנת חדר בריחה</h1>
@@ -309,7 +315,7 @@ const Booking = () => {
                     </p>
                 </div>
 
-                {isConnected && selectedRoom ? (
+                {roomsStatus === READY && selectedRoom ? (
                     <>
                         <section aria-labelledby="room-heading">
                         <StepHeading id="room-heading" number={1}>בחרו חדר</StepHeading>
@@ -381,7 +387,9 @@ const Booking = () => {
                         </div>
                     </>
                 ) : (
-                    <div className="error-message">לא ניתן להתחבר לשרת. אנא נסה שוב מאוחר יותר.</div>
+                    roomsStatus === LOADING
+                        ? <p className="slots-message" role="status">{ROOMS_LOADING_MESSAGE}</p>
+                        : <div className="error-message">{SERVER_UNREACHABLE_MESSAGE}</div>
                 )}
 
                 {selectedSlot && (

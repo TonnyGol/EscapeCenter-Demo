@@ -7,6 +7,7 @@ import Home from './pages/Home';
 import Rooms from './pages/Rooms';
 import RoomDetail from './pages/RoomDetail';
 import Booking from './pages/Booking';
+import NotFound from './pages/NotFound';
 
 const AppRoutes = () => {
     return (
@@ -17,6 +18,7 @@ const AppRoutes = () => {
                     <Route path="/rooms" element={<Rooms />} />
                     <Route path="/rooms/:id" element={<RoomDetail />} />
                     <Route path="/booking" element={<Booking />} />
+                    <Route path="*" element={<NotFound />} />
                 </Routes>
             </MainLayout>
         </Router>

@@ -76,12 +76,12 @@ const MainLayout = ({ children }) => {
                 <div className="container">
                     <div className="footer-content">
                         <div className="footer-section">
-                            <h3 className="footer-title">EscapeCenter</h3>
+                            <h2 className="footer-title">EscapeCenter</h2>
                             <p className="footer-text">מתחם חדרי הבריחה בראשון לציון</p>
                         </div>
 
                         <div className="footer-section">
-                            <h4 className="footer-subtitle">קישורים</h4>
+                            <h3 className="footer-subtitle">קישורים</h3>
                             <div className="footer-links">
                                 {navLinks.map((link) => (
                                     <Link key={link.path} to={link.path} className="footer-link">
@@ -92,7 +92,7 @@ const MainLayout = ({ children }) => {
                         </div>
 
                         <div className="footer-section">
-                            <h4 className="footer-subtitle">צור קשר</h4>
+                            <h3 className="footer-subtitle">צור קשר</h3>
                             <p className="footer-text">{VENUE.address}</p>
                             <p className="footer-text">טלפון: <span dir="ltr">{VENUE.phone}</span></p>
                             <p className="footer-text"><span dir="ltr">{VENUE.email}</span></p>

@@ -1,6 +1,8 @@
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Clock, TriangleAlert, Trophy, Users } from 'lucide-react';
+import PageTitle from '../PageTitle';
+import NotFound from './NotFound';
 import { RoomIcon } from '../roomVisuals';
 import { ROOM_THEMES } from '../roomThemes';
 import { playersLabel, useApiRooms } from '../useApiRooms';
@@ -8,6 +10,7 @@ import { HEALTH_WARNING, PRICE_NOTES, VENUE, roomById } from '../roomsData';
 import './RoomDetail.css';
 
 const NOT_FOUND_TITLE = 'חדר לא נמצא';
+const BACK_TO_ROOMS_LABEL = 'חזרה לרשימת החדרים';
 const PRICE_UNIT = '₪ למשתתף';
 const PRICES_LOADING_MESSAGE = 'טוענים את המחירון…';
 const PRICES_FAILED_MESSAGE = 'לא הצלחנו לטעון את המחירון. אפשר לברר במחירים בטלפון:';
@@ -22,12 +25,7 @@ const RoomDetail = () => {
     const prices = apiRoom?.prices ?? [];
 
     if (!room) {
-        return (
-            <div className="container room-missing">
-                <h1 className="heading-2">{NOT_FOUND_TITLE}</h1>
-                <Link to="/rooms" className="btn btn-primary">חזרה לרשימת החדרים</Link>
-            </div>
-        );
+        return <NotFound title={NOT_FOUND_TITLE} backTo="/rooms" backLabel={BACK_TO_ROOMS_LABEL} />;
     }
 
     const theme = ROOM_THEMES[room.name];
@@ -35,6 +33,7 @@ const RoomDetail = () => {
 
     return (
         <div className="room-detail-page" data-room={theme.key}>
+            <PageTitle>{room.name}</PageTitle>
             <div className="container">
                 <header className="room-detail-header">
                     <div className="room-detail-poster" aria-hidden="true">

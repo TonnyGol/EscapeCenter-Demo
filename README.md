@@ -4,7 +4,11 @@
 
 Booking and management system for an escape-room venue: Spring Boot API, React booking site, JavaFX staff app.
 
-<!-- TODO: demo GIF (React booking flow + JavaFX admin calendar), recorded with ScreenToGif -->
+Website, Lighthouse on the production build (2026-11-16): performance 95, accessibility 100, best practices 96, SEO 100.
+
+![Booking flow on the website: pick a room, a date and a time, then fill in the details](docs/website_demo.gif)
+
+<!-- TODO: second GIF for the JavaFX staff app (day timeline), recorded with ScreenToGif -->
 
 ## Architecture
 

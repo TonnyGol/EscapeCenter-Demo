@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import RoomCard from '../RoomCard';
+import PageTitle from '../PageTitle';
 import { ROOMS, VENUE } from '../roomsData';
 import { useApiRooms } from '../useApiRooms';
 import './Home.css';
@@ -33,6 +34,7 @@ const Home = () => {
 
     return (
     <div className="home-page">
+        <PageTitle />
         <section className="home-hero">
             <div className="container home-hero-grid">
                 <div className="home-hero-copy">

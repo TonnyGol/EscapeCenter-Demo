@@ -131,6 +131,15 @@ describe('Booking page', () => {
         expect(screen.getByText('הפרטים שלכם')).toBeInTheDocument()
     })
 
+    it('shows a loading message, not a connection error, while the rooms are loading', () => {
+        axios.get.mockReturnValue(new Promise(() => {}))
+
+        showBookingPage()
+
+        expect(screen.getByText('טוענים את החדרים…')).toBeInTheDocument()
+        expect(screen.queryByText(/לא ניתן להתחבר לשרת/)).not.toBeInTheDocument()
+    })
+
     it('shows a connection error when the rooms cannot be loaded', async () => {
         axios.get.mockRejectedValue(new Error('network down'))
 
