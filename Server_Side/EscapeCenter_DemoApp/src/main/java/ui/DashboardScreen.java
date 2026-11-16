@@ -5,6 +5,7 @@ import javafx.geometry.*;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
 /**
@@ -13,45 +14,45 @@ import javafx.stage.Stage;
  */
 public class DashboardScreen {
 
+    private static final double CARD_ICON_SIZE = 36;
+    private static final String CARD_ICON_COLOR = "#c8452d";
+
     public Node createPane(NavigationShell shell) {
         String username = Session.getInstance().getUsername();
 
         // Welcome header
-        Label welcome = new Label("👋 שלום, " + (username != null ? username : ""));
+        Label welcome = new Label("שלום, " + (username != null ? username : ""));
         welcome.getStyleClass().add("dashboard-welcome");
 
         Label sub = new Label("מה תרצה לעשות היום?");
         sub.getStyleClass().add("dashboard-sub");
 
         // Quick-action cards
-        VBox bookingCard = createCard("📅", "ניהול הזמנות",
+        VBox bookingCard = createCard(Icons.CALENDAR, "ניהול הזמנות",
                 "צפייה ועריכת הזמנות בלוח השבועי");
-        VBox clientCard = createCard("👥", "ניהול לקוחות",
+        VBox clientCard = createCard(Icons.USERS, "ניהול לקוחות",
                 "חיפוש וצפייה בפרטי לקוחות");
-        VBox reportsCard = createCard("📋", "דו\"חות",
+        VBox reportsCard = createCard(Icons.REPORT, "דו\"חות",
                 "משחקים ששוחקו והוזמנו השבוע והחודש");
-        VBox settingsCard = createCard("⚙️", "הגדרות",
-                "הגדרות מערכת — בקרוב");
 
         // Card actions
         bookingCard.setOnMouseClicked(e -> shell.navigateToBookings());
         clientCard.setOnMouseClicked(e -> shell.navigateToClients());
         reportsCard.setOnMouseClicked(e -> shell.navigateToReports());
-        settingsCard.setOnMouseClicked(e -> showInfo("הגדרות — בקרוב"));
 
-        // Grid layout (2×2)
+        // One row of three, in the order of the sidebar
         GridPane grid = new GridPane();
         grid.getStyleClass().add("dashboard-grid");
-        grid.setAlignment(Pos.CENTER);
+        // In a right-to-left pane the left alignments sit on the reading start, next to the sidebar.
+        grid.setAlignment(Pos.TOP_LEFT);
         grid.add(bookingCard, 0, 0);
         grid.add(clientCard, 1, 0);
-        grid.add(reportsCard, 0, 1);
-        grid.add(settingsCard, 1, 1);
+        grid.add(reportsCard, 2, 0);
 
         VBox pane = new VBox(20, welcome, sub, grid);
         pane.getStyleClass().add("dashboard-pane");
         pane.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
-        pane.setAlignment(Pos.TOP_RIGHT);
+        pane.setAlignment(Pos.TOP_LEFT);
         return pane;
     }
 
@@ -62,9 +63,8 @@ public class DashboardScreen {
         shell.show();
     }
 
-    private VBox createCard(String icon, String title, String description) {
-        Label iconLabel = new Label(icon);
-        iconLabel.getStyleClass().add("dashboard-card-icon");
+    private VBox createCard(String iconPath, String title, String description) {
+        Node iconLabel = Icons.of(iconPath, CARD_ICON_SIZE, Color.web(CARD_ICON_COLOR));
 
         Label titleLabel = new Label(title);
         titleLabel.getStyleClass().add("dashboard-card-title");
@@ -82,11 +82,5 @@ public class DashboardScreen {
         Tooltip.install(card, tooltip);
 
         return card;
-    }
-
-    private void showInfo(String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION, message, ButtonType.OK);
-        alert.setHeaderText(null);
-        alert.showAndWait();
     }
 }

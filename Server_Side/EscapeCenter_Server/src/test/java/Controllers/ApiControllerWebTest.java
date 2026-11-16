@@ -108,7 +108,7 @@ class ApiControllerWebTest {
     @Test
     @WithAnonymousUser
     void getRooms_isPublicAndReturnsRooms() throws Exception {
-        when(roomService.getRooms()).thenReturn(List.of(new RoomResponse(ROOM_ID, "Vault", 6, 60)));
+        when(roomService.getRooms()).thenReturn(List.of(new RoomResponse(ROOM_ID, "Vault", 6, 2, 60, "A locked vault", List.of(new Entities.PriceTier(2, 130, 120)))));
 
         mockMvc.perform(get(ROOMS_URL))
                 .andExpect(status().isOk())

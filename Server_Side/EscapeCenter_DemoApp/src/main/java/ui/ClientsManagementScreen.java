@@ -3,6 +3,7 @@ package ui;
 import model.Booking;
 import model.Client;
 import service.ApiService;
+import service.ServerMessages;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.geometry.*;
 import javafx.scene.Node;
@@ -35,6 +36,10 @@ public class ClientsManagementScreen {
     private Button rightBtn;
 
     private static final int CLIENTS_PER_PAGE = 10;
+    private static final String NO_CLIENTS_MESSAGE = "לא נמצאו לקוחות. נסו שם או מספר טלפון אחר.";
+    private static final String NO_EMAIL_LABEL = "אין אימייל";
+    private static final double NAME_ICON_SIZE = 16;
+    private static final double DETAIL_ICON_SIZE = 14;
     private static final String WHATSAPP_URL = "https://wa.me/";
     private static final String MAILTO_SCHEME = "mailto";
     private static final String ISRAEL_COUNTRY_CODE = "972";
@@ -61,7 +66,7 @@ public class ClientsManagementScreen {
 
         // ---- Search bar ----
         searchField = new TextField();
-        searchField.setPromptText("🔍 חפש לקוח לפי שם או טלפון...");
+        searchField.setPromptText("חיפוש לקוח לפי שם או טלפון...");
         searchField.getStyleClass().add("search-field");
         searchField.setAccessibleText("שדה חיפוש לקוחות");
         searchField.setTooltip(new Tooltip("הקלד שם או מספר טלפון לחיפוש"));
@@ -101,7 +106,7 @@ public class ClientsManagementScreen {
         pageLabel = new Label();
         pageLabel.getStyleClass().add("page-indicator");
 
-        Button jumpBtn = new Button("🔢");
+        Button jumpBtn = new Button("מעבר לעמוד");
         jumpBtn.getStyleClass().add("page-btn");
         jumpBtn.setTooltip(new Tooltip("קפוץ לעמוד מסוים"));
         jumpBtn.setAccessibleText("קפוץ לעמוד");
@@ -186,7 +191,7 @@ public class ClientsManagementScreen {
         countLabel.setText("סה\"כ: " + clients.size() + " לקוחות");
 
         if (clients.isEmpty()) {
-            Label empty = new Label("🔍 לא נמצאו לקוחות.");
+            Label empty = new Label(NO_CLIENTS_MESSAGE);
             empty.getStyleClass().add("client-count");
             empty.setStyle("-fx-font-size: 16px; -fx-padding: 40;");
             cardDisplay.getChildren().add(empty);
@@ -217,13 +222,13 @@ public class ClientsManagementScreen {
 
         String fullName = client.firstName() + " " + client.lastName();
 
-        Label name = new Label("👤 " + fullName);
+        Label name = Icons.label(fullName, Icons.USER, NAME_ICON_SIZE);
         name.getStyleClass().add("client-name");
 
-        Label phone = new Label("📞 " + client.phoneNumber());
+        Label phone = Icons.label(client.phoneNumber(), Icons.PHONE, DETAIL_ICON_SIZE);
         phone.getStyleClass().add("client-detail");
 
-        Label email = new Label("✉️ " + client.email());
+        Label email = Icons.label(hasEmail(client) ? client.email() : NO_EMAIL_LABEL, Icons.MAIL, DETAIL_ICON_SIZE);
         email.getStyleClass().add("client-detail");
 
         Button historyBtn = createCardButton("היסטוריית הזמנות", "כל ההזמנות של " + fullName);
@@ -236,8 +241,7 @@ public class ClientsManagementScreen {
         whatsAppBtn.setOnAction(e -> openLink(URI.create(whatsAppLink(client.phoneNumber()))));
 
         Button emailBtn = createCardButton("אימייל", "כתיבת אימייל אל " + fullName);
-        boolean hasEmail = client.email() != null && !client.email().isBlank();
-        emailBtn.setDisable(!hasEmail);
+        emailBtn.setDisable(!hasEmail(client));
         emailBtn.setOnAction(e -> openEmail(client.email()));
 
         HBox actions = new HBox(8, historyBtn, editBtn, whatsAppBtn, emailBtn);
@@ -246,9 +250,14 @@ public class ClientsManagementScreen {
         card.getChildren().addAll(name, phone, email, actions);
 
         card.setAccessibleText(fullName + ", טלפון: " + client.phoneNumber());
-        Tooltip.install(card, new Tooltip(fullName + "\n📞 " + client.phoneNumber() + "\n✉️ " + client.email()));
+        Tooltip.install(card, new Tooltip(fullName + "\nטלפון: " + client.phoneNumber() + "\nאימייל: "
+                + (hasEmail(client) ? client.email() : NO_EMAIL_LABEL)));
 
         return card;
+    }
+
+    private static boolean hasEmail(Client client) {
+        return client.email() != null && !client.email().isBlank();
     }
 
     private Button createCardButton(String text, String description) {
@@ -316,11 +325,17 @@ public class ClientsManagementScreen {
         form.add(new Label("טלפון:"), 0, 2);     form.add(phoneField, 1, 2);
         form.add(new Label("אימייל:"), 0, 3);    form.add(emailField, 1, 3);
 
+        Label formError = new Label();
+        formError.getStyleClass().add("form-error");
+        form.add(formError, 1, 4);
+
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("עריכת לקוח");
         dialog.getDialogPane().setContent(form);
         ButtonType saveType = new ButtonType("שמור שינויים", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(saveType, new ButtonType("סגור", ButtonBar.ButtonData.CANCEL_CLOSE));
+
+        FormChecks.guardSave(dialog, saveType, firstNameField, lastNameField, phoneField, emailField, formError);
 
         if (dialog.showAndWait().filter(saveType::equals).isEmpty()) {
             return;
@@ -328,7 +343,7 @@ public class ClientsManagementScreen {
         // An empty email box means "no email", which the server accepts; an empty string it does not.
         String email = emailField.getText() == null || emailField.getText().isBlank() ? null : emailField.getText().trim();
         Client edited = new Client(client.id(), firstNameField.getText(), lastNameField.getText(), phoneField.getText(), email);
-        ApiService.getInstance().updateClient(edited).ifPresent(reason -> showError(SAVE_FAILED_TITLE, reason));
+        ApiService.getInstance().updateClient(edited).ifPresent(reason -> showError(SAVE_FAILED_TITLE, ServerMessages.inHebrew(reason)));
         clientMap = new HashMap<>(ApiService.getInstance().loadClients());
         int pageBeforeReload = currentPage;
         filterClients();

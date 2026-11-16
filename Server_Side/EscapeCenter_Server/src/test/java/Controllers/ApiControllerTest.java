@@ -119,7 +119,29 @@ class ApiControllerTest extends MySqlIntegrationTest {
     void rooms_arePublic() throws Exception {
         mockMvc.perform(get(ROOMS_URL))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.name == '" + ROOM + "')].capacity", hasItem(ROOM_CAPACITY)));
+                .andExpect(jsonPath("$[?(@.name == '" + ROOM + "')].capacity", hasItem(ROOM_CAPACITY)))
+                .andExpect(jsonPath("$[?(@.name == '" + ROOM + "')].minParticipants", hasItem(2)));
+    }
+
+    @Test
+    void rooms_includeTheVenuesRealRoomsWithTieredPrices() throws Exception {
+        mockMvc.perform(get(ROOMS_URL))
+                .andExpect(jsonPath("$[?(@.name == 'נרקוס')].minParticipants", hasItem(3)))
+                .andExpect(jsonPath("$[?(@.name == 'נרקוס')].durationMinutes", hasItem(75)))
+                .andExpect(jsonPath("$[?(@.name == 'דו-קרב צוללות')].capacity", hasItem(20)))
+                .andExpect(jsonPath("$[?(@.name == 'נרקוס')].prices[*].fromParticipants", hasItem(3)))
+                .andExpect(jsonPath("$[?(@.name == 'נרקוס')].prices[*].pricePerParticipant", hasItem(170)))
+                .andExpect(jsonPath("$[?(@.name == 'נרקוס')].prices[*].discountedPrice", hasItem(110)));
+    }
+
+    @Test
+    void customer_cannotBookBelowTheRoomMinimum_butStaffCan() throws Exception {
+        jdbcTemplate.update("UPDATE rooms SET min_participants = 3 WHERE id = ?", roomId);
+
+        mockMvc.perform(jsonPost(BOOKINGS_URL, createJson(FIRST_SLOT, CLIENT_FIRST_NAME, 2)))
+                .andExpect(status().isBadRequest());
+        mockMvc.perform(asAdmin(jsonPost(BOOKINGS_URL, createJson(FIRST_SLOT, CLIENT_FIRST_NAME, 2))))
+                .andExpect(status().isCreated());
     }
 
     @Test
@@ -395,6 +417,34 @@ class ApiControllerTest extends MySqlIntegrationTest {
                 .andExpect(jsonPath("$[0].type").value(BookingType.TEAM_BUILDING.name()))
                 .andExpect(jsonPath("$[0].internalNotes").value(STAFF_NOTE))
                 .andExpect(jsonPath("$[0].notes").value("client note"));
+    }
+
+    @Test
+    void staff_changeStatus_thenSearchByStatusAndText() throws Exception {
+        mockMvc.perform(jsonPost(BOOKINGS_URL, createJson(FIRST_SLOT, CLIENT_FIRST_NAME, 2))).andExpect(status().isCreated());
+        String searchUrl = BOOKINGS_URL + "/search?from=" + DAY + "&to=" + DAY + "&query=" + CLIENT_FIRST_NAME.toUpperCase();
+
+        mockMvc.perform(asAdmin(get(searchUrl))).andExpect(jsonPath("$.length()").value(1));
+        mockMvc.perform(asAdmin(get(searchUrl + "&status=NO_SHOW"))).andExpect(jsonPath("$.length()").value(0));
+
+        mockMvc.perform(asAdmin(put(BOOKINGS_URL + "/" + bookingId() + "/status")).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"NO_SHOW\"}")).andExpect(status().isNoContent());
+
+        mockMvc.perform(asAdmin(get(searchUrl + "&status=NO_SHOW")))
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].status").value("NO_SHOW"));
+        mockMvc.perform(asAdmin(get(searchUrl + "x"))).andExpect(jsonPath("$.length()").value(0));
+        mockMvc.perform(get(searchUrl)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void staff_cannotSetStatusCancelled_becauseCancellingIsDeleting() throws Exception {
+        mockMvc.perform(jsonPost(BOOKINGS_URL, createJson(FIRST_SLOT, CLIENT_FIRST_NAME, 2))).andExpect(status().isCreated());
+
+        mockMvc.perform(asAdmin(put(BOOKINGS_URL + "/" + bookingId() + "/status")).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"CANCELLED\"}")).andExpect(status().isBadRequest());
+
+        mockMvc.perform(asAdmin(get(staffListUrl()))).andExpect(jsonPath("$[0].status").value("CONFIRMED"));
     }
 
     @Test

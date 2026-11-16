@@ -3,9 +3,11 @@ package Controllers;
 import DataBaseService.BookingService;
 import DataBaseService.ClientsService;
 import DataBaseService.RoomService;
+import Entities.BookingStatus;
 import Requests.ClientDetails;
 import Requests.CreateBookingRequest;
 import Requests.UpdateBookingRequest;
+import Requests.UpdateStatusRequest;
 import Responses.ClientResponse;
 import Responses.RoomResponse;
 import Responses.SlotResponse;
@@ -74,6 +76,21 @@ public class ApiController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) Long roomId) {
         return bookingService.getBookings(from, to, roomId);
+    }
+
+    @GetMapping("/bookings/search")
+    public List<StaffBookingResponse> searchBookings(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) BookingStatus status) {
+        return bookingService.searchBookings(from, to, query, status);
+    }
+
+    @PutMapping("/bookings/{id}/status")
+    public ResponseEntity<Void> updateBookingStatus(@PathVariable Long id, @Valid @RequestBody UpdateStatusRequest request) {
+        bookingService.updateStatus(id, request.status());
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/bookings/{id}")

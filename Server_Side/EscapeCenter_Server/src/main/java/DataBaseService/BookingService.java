@@ -1,6 +1,7 @@
 package DataBaseService;
 
 import Entities.Booking;
+import Entities.BookingStatus;
 import Entities.Client;
 import Entities.Room;
 import Entities.OutboxEvent;
@@ -38,6 +39,8 @@ public class BookingService {
     private static final String NO_PHONE_DIGITS_MESSAGE = "client.phoneNumber: must contain digits.";
     private static final String NON_DIGITS_REGEX = "\\D";
     private static final String INTERNATIONAL_PREFIX = "+";
+    private static final String CANCEL_BY_DELETE_MESSAGE = "status: delete the booking to cancel it, a cancelled booking would keep the slot taken.";
+    private static final String ROOM_NEEDS_MORE_MESSAGE = "booking.participants: this room needs at least %d people.";
     private static final String ROOM_TOO_SMALL_MESSAGE = "booking.participants: this room holds at most %d people.";
 
     private final BookingRepository bookingRepository;
@@ -75,6 +78,9 @@ public class BookingService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, OFF_GRID_START_MESSAGE);
         }
         requireRoomHolds(room, request.booking().participants());
+        if (!bookedByStaff) {
+            requireRoomMinimum(room, request.booking().participants());
+        }
         if (bookingRepository.existsByRoomIdAndStartAt(room.getId(), request.startAt())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, SLOT_TAKEN_MESSAGE);
         }
@@ -91,12 +97,27 @@ public class BookingService {
 
     @Transactional(readOnly = true)
     public List<StaffBookingResponse> getBookings(LocalDate from, LocalDate to, Long roomId) {
-        if (to.isBefore(from) || ChronoUnit.DAYS.between(from, to) > MAX_RANGE_DAYS) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, BAD_RANGE_MESSAGE.formatted(MAX_RANGE_DAYS));
-        }
+        requireValidRange(from, to);
         return bookingRepository.findInRange(from.atStartOfDay(), to.plusDays(1).atStartOfDay(), roomId).stream()
                 .map(StaffBookingResponse::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<StaffBookingResponse> searchBookings(LocalDate from, LocalDate to, String text, BookingStatus status) {
+        requireValidRange(from, to);
+        String lowerText = text == null ? "" : text.trim().toLowerCase();
+        return bookingRepository.search(from.atStartOfDay(), to.plusDays(1).atStartOfDay(), lowerText, status).stream()
+                .map(StaffBookingResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public void updateStatus(Long id, BookingStatus status) {
+        if (status == BookingStatus.CANCELLED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, CANCEL_BY_DELETE_MESSAGE);
+        }
+        findBookingById(id).setStatus(status);
     }
 
     @Transactional
@@ -189,10 +210,24 @@ public class BookingService {
         }
     }
 
+    // Staff may book fewer, for example a pair arranged by phone.
+    private static void requireRoomMinimum(Room room, int participants) {
+        if (participants < room.getMinParticipants()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    ROOM_NEEDS_MORE_MESSAGE.formatted(room.getMinParticipants()));
+        }
+    }
+
     private static void requireRoomHolds(Room room, int participants) {
         if (participants > room.getCapacity()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     ROOM_TOO_SMALL_MESSAGE.formatted(room.getCapacity()));
+        }
+    }
+
+    private static void requireValidRange(LocalDate from, LocalDate to) {
+        if (to.isBefore(from) || ChronoUnit.DAYS.between(from, to) > MAX_RANGE_DAYS) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, BAD_RANGE_MESSAGE.formatted(MAX_RANGE_DAYS));
         }
     }
 

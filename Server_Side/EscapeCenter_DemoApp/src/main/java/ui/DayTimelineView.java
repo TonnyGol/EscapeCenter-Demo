@@ -43,11 +43,11 @@ final class DayTimelineView {
     }
 
     private static final double PIXELS_PER_MINUTE = 1.3;
-    private static final double AXIS_WIDTH = 60;
-    private static final double GUTTER_WIDTH = 104;
-    private static final double COLUMN_MIN_WIDTH = 170;
+    private static final double AXIS_WIDTH = 44;
+    private static final double GUTTER_WIDTH = 84;
+    private static final double COLUMN_MIN_WIDTH = 84; // 7 rooms and the overlap column fit a 1280px window; narrower windows scroll
     private static final double TOP_PADDING = 12;
-    private static final double BLOCK_SIDE_INSET = 4;
+    private static final double BLOCK_SIDE_INSET = 3;
     private static final double BLOCK_VERTICAL_GAP = 2;
     private static final double NOW_LINE_HEIGHT = 2;
     private static final int MINUTES_PER_HOUR = 60;
@@ -77,10 +77,11 @@ final class DayTimelineView {
 
         Pane gridLayer = hourLines(timelineStart, timelineEnd);
         HBox columnsRow = columnsRow(rooms, gameStarts, date, slotFactory, timelineStart, timelineEnd, bodyHeight);
+        Pane bandLayer = overlapBands(dayBookings, timelineStart);
         Pane overlayLayer = overlayLayer(dayBookings, date, timelineStart, timelineEnd);
 
         // The body is laid out left to right so the shaded bands can start at x = 0; only the row of columns reads right to left.
-        StackPane body = new StackPane(gridLayer, columnsRow, overlayLayer);
+        StackPane body = new StackPane(gridLayer, bandLayer, columnsRow, overlayLayer);
         body.setAlignment(Pos.TOP_LEFT);
         body.setNodeOrientation(NodeOrientation.LEFT_TO_RIGHT);
         body.setMinHeight(bodyHeight);
@@ -163,26 +164,33 @@ final class DayTimelineView {
         return lines;
     }
 
-    /** Shaded bands where games overlap, and the line for the current time. Clicks pass through to the games below. */
+    /** Shaded bands where games overlap. They sit behind the games, so a booking is never covered by its own band. */
+    private static Pane overlapBands(Collection<Booking> dayBookings, int timelineStart) {
+        Pane bands = new Pane();
+        bands.setMouseTransparent(true);
+        for (Span span : overlapSpans(dayBookings)) {
+            Region band = new Region();
+            band.getStyleClass().add("overlap-band");
+            band.setLayoutY(yOf(minuteOfDay(span.start().toLocalTime()), timelineStart));
+            band.setPrefHeight(java.time.Duration.between(span.start(), span.end()).toMinutes() * PIXELS_PER_MINUTE);
+            band.prefWidthProperty().bind(bands.widthProperty().subtract(AXIS_WIDTH));
+            bands.getChildren().add(band);
+        }
+        return bands;
+    }
+
+    /** The label of each overlap and the line for the current time, above the games. Clicks pass through. */
     private static Pane overlayLayer(Collection<Booking> dayBookings, LocalDate date, int timelineStart, int timelineEnd) {
         Pane overlay = new Pane();
         overlay.setMouseTransparent(true);
         for (Span span : overlapSpans(dayBookings)) {
             double top = yOf(minuteOfDay(span.start().toLocalTime()), timelineStart);
-            double height = java.time.Duration.between(span.start(), span.end()).toMinutes() * PIXELS_PER_MINUTE;
-
-            Region band = new Region();
-            band.getStyleClass().add("overlap-band");
-            band.setLayoutY(top);
-            band.setPrefHeight(height);
-            band.prefWidthProperty().bind(overlay.widthProperty().subtract(AXIS_WIDTH));
-
             Label pill = new Label(OVERLAP_LABEL + "\n" + span.start().format(TIME_FORMAT) + "-" + span.end().format(TIME_FORMAT));
             pill.getStyleClass().add("overlap-pill");
-            pill.setLayoutX(6);
+            pill.setLayoutX(4);
             pill.setLayoutY(top + 2);
-            pill.setPrefWidth(GUTTER_WIDTH - 12);
-            overlay.getChildren().addAll(band, pill);
+            pill.setPrefWidth(GUTTER_WIDTH - 8);
+            overlay.getChildren().add(pill);
         }
         int nowMinute = minuteOfDay(LocalTime.now());
         if (date.equals(LocalDate.now()) && nowMinute >= timelineStart && nowMinute <= timelineEnd) {
@@ -207,6 +215,7 @@ final class DayTimelineView {
             name.setMinWidth(COLUMN_MIN_WIDTH);
             name.setPrefWidth(COLUMN_MIN_WIDTH);
             name.setMaxWidth(Double.MAX_VALUE);
+            name.setWrapText(true);
             HBox.setHgrow(name, Priority.ALWAYS);
             header.getChildren().add(name);
         }

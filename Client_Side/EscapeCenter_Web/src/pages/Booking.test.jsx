@@ -10,21 +10,29 @@ vi.mock('axios')
 const NEXT_MONTH_LABEL = 'החודש הבא'
 const PREVIOUS_MONTH_LABEL = 'החודש הקודם'
 const MID_MONTH_DAY = 15
-const MISSING_DETAILS_MESSAGE = 'יש למלא שם פרטי, שם משפחה וטלפון.'
-const SLOT_TAKEN_MESSAGE = 'המשבצת הזו כבר נתפסה, בחרו שעה אחרת.'
-const BOOKING_SAVED_MESSAGE = 'הזמנה נשמרה בהצלחה!'
+const FIRST_NAME_REQUIRED_MESSAGE = 'יש למלא שם פרטי.'
+const EMAIL_INVALID_MESSAGE = 'כתובת האימייל לא תקינה.'
+const SLOT_TAKEN_MESSAGE = 'המשבצת הזו כבר נתפסה. בחרו שעה אחרת מהרשימה.'
+const CONFIRMATION_TITLE = 'ההזמנה אושרה'
+const BOOK_ANOTHER_LABEL = 'הזמנה נוספת'
 const TRY_AGAIN_MESSAGE = 'ההזמנה לא נשמרה, נסו שוב.'
 const TRY_AGAIN_CODE = 'TRY_AGAIN'
 const SERVER_REASON = 'client.firstName: must not be blank'
-const ROOM = { id: 1, name: 'Vault', capacity: 4, durationMinutes: 60 }
+const ROOM = {
+    id: 1, name: 'Vault', capacity: 4, minParticipants: 2, durationMinutes: 60, description: 'Locked',
+    prices: [{ fromParticipants: 2, pricePerParticipant: 170, discountedPrice: 170 }, { fromParticipants: 3, pricePerParticipant: 150, discountedPrice: 140 }],
+}
 const FREE_SLOT = { startAt: '2099-01-01T10:00:00', endAt: '2099-01-01T11:00:00', available: true }
 const TAKEN_SLOT = { startAt: '2099-01-01T12:00:00', endAt: '2099-01-01T13:00:00', available: false }
 const AVAILABLE_LABEL = 'פנוי'
 const BOOKED_LABEL = 'תפוס'
 const SUBMIT_LABEL = 'אשר הזמנה'
-const FIRST_NAME_PLACEHOLDER = 'שם פרטי'
-const LAST_NAME_PLACEHOLDER = 'שם משפחה'
-const PHONE_PLACEHOLDER = 'טלפון'
+const CANCEL_LABEL = 'ביטול'
+const DIALOG_TITLE = 'הזמנת משחק'
+const FIRST_NAME_LABEL = 'שם פרטי'
+const LAST_NAME_LABEL = 'שם משפחה'
+const PHONE_LABEL = 'טלפון'
+const EMAIL_LABEL = /אימייל/
 const FIRST_NAME = 'Dana'
 const LAST_NAME = 'Levi'
 const PHONE = '0501234567'
@@ -41,16 +49,15 @@ const openFirstFreeSlot = async user => {
 }
 
 const fillClientDetails = async user => {
-    await user.type(screen.getByPlaceholderText(FIRST_NAME_PLACEHOLDER), FIRST_NAME)
-    await user.type(screen.getByPlaceholderText(LAST_NAME_PLACEHOLDER), LAST_NAME)
-    await user.type(screen.getByPlaceholderText(PHONE_PLACEHOLDER), PHONE)
+    await user.type(screen.getByLabelText(FIRST_NAME_LABEL), FIRST_NAME)
+    await user.type(screen.getByLabelText(LAST_NAME_LABEL), LAST_NAME)
+    await user.type(screen.getByLabelText(PHONE_LABEL), PHONE)
 }
 
 describe('Booking page', () => {
     beforeEach(() => {
         axios.get.mockImplementation(url =>
             Promise.resolve({ data: url.endsWith('/api/rooms') ? [ROOM] : [FREE_SLOT, TAKEN_SLOT] }))
-        vi.spyOn(window, 'alert').mockImplementation(() => {})
         vi.spyOn(console, 'error').mockImplementation(() => {})
     })
 
@@ -110,6 +117,20 @@ describe('Booking page', () => {
         expect(await screen.findByText(/אין שעות פנויות בתאריך הזה/)).toBeInTheDocument()
     })
 
+    it('numbers the steps: room, date and time on the page, then the details in the dialog', async () => {
+        const user = userEvent.setup()
+        showBookingPage()
+        await screen.findAllByText(AVAILABLE_LABEL)
+
+        expect(screen.getByRole('heading', { name: /בחרו חדר/ })).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: /בחרו תאריך/ })).toBeInTheDocument()
+        expect(screen.getByRole('heading', { name: /בחרו שעה/ })).toBeInTheDocument()
+
+        await openFirstFreeSlot(user)
+
+        expect(screen.getByText('הפרטים שלכם')).toBeInTheDocument()
+    })
+
     it('shows a connection error when the rooms cannot be loaded', async () => {
         axios.get.mockRejectedValue(new Error('network down'))
 
@@ -118,18 +139,62 @@ describe('Booking page', () => {
         expect(await screen.findByText(/לא ניתן להתחבר לשרת/)).toBeInTheDocument()
     })
 
-    it('refuses to submit while a required field is empty', async () => {
+    it('names the empty required field next to it, focuses it and sends nothing', async () => {
         const user = userEvent.setup()
         showBookingPage()
         await openFirstFreeSlot(user)
 
         await user.click(screen.getByRole('button', { name: SUBMIT_LABEL }))
 
-        expect(window.alert).toHaveBeenCalledWith(MISSING_DETAILS_MESSAGE)
+        expect(screen.getByText(FIRST_NAME_REQUIRED_MESSAGE)).toBeInTheDocument()
+        expect(screen.getByLabelText(FIRST_NAME_LABEL)).toHaveFocus()
+        expect(screen.getByLabelText(FIRST_NAME_LABEL)).toBeInvalid()
         expect(axios.post).not.toHaveBeenCalled()
     })
 
-    it('sends the booking and reloads the day when the details are valid', async () => {
+    it('refuses a malformed email before calling the server', async () => {
+        const user = userEvent.setup()
+        showBookingPage()
+        await openFirstFreeSlot(user)
+        await fillClientDetails(user)
+        await user.type(screen.getByLabelText(EMAIL_LABEL), 'not-an-email')
+
+        await user.click(screen.getByRole('button', { name: SUBMIT_LABEL }))
+
+        expect(screen.getByText(EMAIL_INVALID_MESSAGE)).toBeInTheDocument()
+        expect(axios.post).not.toHaveBeenCalled()
+    })
+
+    it('opens a labelled dialog with focus on the first field, and Escape closes it and returns focus', async () => {
+        const user = userEvent.setup()
+        showBookingPage()
+        const freeSlots = await screen.findAllByRole('button', { name: new RegExp(AVAILABLE_LABEL) })
+        await user.click(freeSlots[0])
+
+        const dialog = screen.getByRole('dialog', { name: DIALOG_TITLE })
+        expect(dialog).toHaveAttribute('aria-modal', 'true')
+        expect(screen.getByLabelText(FIRST_NAME_LABEL)).toHaveFocus()
+
+        await user.keyboard('{Escape}')
+
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+        expect(freeSlots[0]).toHaveFocus()
+    })
+
+    it('keeps Tab inside the dialog', async () => {
+        const user = userEvent.setup()
+        showBookingPage()
+        await openFirstFreeSlot(user)
+
+        await user.click(screen.getByRole('button', { name: CANCEL_LABEL }))
+        await openFirstFreeSlot(user)
+        screen.getByRole('button', { name: CANCEL_LABEL }).focus()
+        await user.tab()
+
+        expect(screen.getByLabelText(FIRST_NAME_LABEL)).toHaveFocus()
+    })
+
+    it('sends the booking and replaces the page with the confirmation of that game', async () => {
         axios.post.mockResolvedValue({})
         const user = userEvent.setup()
         showBookingPage()
@@ -139,14 +204,61 @@ describe('Booking page', () => {
 
         await user.click(screen.getByRole('button', { name: SUBMIT_LABEL }))
 
-        await waitFor(() => expect(window.alert).toHaveBeenCalledWith(BOOKING_SAVED_MESSAGE))
+        expect(await screen.findByRole('heading', { name: CONFIRMATION_TITLE })).toHaveFocus()
+        expect(screen.getByText(ROOM.name)).toBeInTheDocument()
+        expect(screen.getByText('10:00-11:00')).toBeInTheDocument()
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
         const [, body] = axios.post.mock.calls[0]
         expect(body).toMatchObject({
             roomId: ROOM.id,
             startAt: FREE_SLOT.startAt,
             client: { firstName: FIRST_NAME, lastName: LAST_NAME, phoneNumber: PHONE },
         })
+
+        await user.click(screen.getByRole('button', { name: BOOK_ANOTHER_LABEL }))
+
+        expect(await screen.findAllByText(AVAILABLE_LABEL)).toHaveLength(1)
+        expect(screen.queryByRole('heading', { name: CONFIRMATION_TITLE })).not.toBeInTheDocument()
         expect(availabilityCalls()).toBeGreaterThan(callsBeforeSubmit)
+    })
+
+    it('shows the total price before confirming and again on the confirmation', async () => {
+        axios.post.mockResolvedValue({})
+        const user = userEvent.setup()
+        showBookingPage()
+        await openFirstFreeSlot(user)
+        const defaultTotal = '340 ₪'
+
+        expect(screen.getByText(defaultTotal)).toBeInTheDocument()
+
+        await fillClientDetails(user)
+        await user.click(screen.getByRole('button', { name: SUBMIT_LABEL }))
+        await screen.findByRole('heading', { name: CONFIRMATION_TITLE })
+
+        expect(screen.getByText(defaultTotal)).toBeInTheDocument()
+    })
+
+    it('uses the price tier of the group size, and offers only sizes the room accepts', async () => {
+        const user = userEvent.setup()
+        showBookingPage()
+        await openFirstFreeSlot(user)
+
+        await user.selectOptions(screen.getByLabelText('מספר משתתפים'), '3')
+
+        expect(screen.getByText('450 ₪')).toBeInTheDocument()
+        expect(screen.getAllByRole('option', { name: /משתתפים/ }).map(option => option.value)).toEqual(['2', '3', '4'])
+    })
+
+    it('shows no total for a room that has no price tiers', async () => {
+        axios.get.mockImplementation(url =>
+            Promise.resolve({ data: url.endsWith('/api/rooms') ? [{ ...ROOM, prices: [] }] : [FREE_SLOT, TAKEN_SLOT] }))
+        const user = userEvent.setup()
+        showBookingPage()
+
+        await openFirstFreeSlot(user)
+
+        expect(screen.getByRole('dialog')).toBeInTheDocument()
+        expect(screen.queryByText(/סה״כ לתשלום/)).not.toBeInTheDocument()
     })
 
     it('shows the server reason when the server answers 400', async () => {
@@ -158,7 +270,8 @@ describe('Booking page', () => {
 
         await user.click(screen.getByRole('button', { name: SUBMIT_LABEL }))
 
-        await waitFor(() => expect(window.alert).toHaveBeenCalledWith(expect.stringContaining(SERVER_REASON)))
+        expect(await screen.findByText(SERVER_REASON)).toBeInTheDocument()
+        expect(screen.getByRole('dialog')).toBeInTheDocument()
     })
 
     it('asks the customer to try again on a 409 that is not a taken slot, and keeps the form', async () => {
@@ -171,7 +284,7 @@ describe('Booking page', () => {
 
         await user.click(screen.getByRole('button', { name: SUBMIT_LABEL }))
 
-        await waitFor(() => expect(window.alert).toHaveBeenCalledWith(TRY_AGAIN_MESSAGE))
+        expect(await screen.findByText(TRY_AGAIN_MESSAGE)).toBeInTheDocument()
         expect(availabilityCalls()).toBe(callsBeforeSubmit)
         expect(screen.getByRole('button', { name: SUBMIT_LABEL })).toBeInTheDocument()
     })
@@ -186,7 +299,7 @@ describe('Booking page', () => {
 
         await user.click(screen.getByRole('button', { name: SUBMIT_LABEL }))
 
-        await waitFor(() => expect(window.alert).toHaveBeenCalledWith(SLOT_TAKEN_MESSAGE))
+        expect(await screen.findByText(SLOT_TAKEN_MESSAGE)).toBeInTheDocument()
         expect(availabilityCalls()).toBeGreaterThan(callsBeforeSubmit)
         expect(screen.queryByRole('button', { name: SUBMIT_LABEL })).not.toBeInTheDocument()
     })

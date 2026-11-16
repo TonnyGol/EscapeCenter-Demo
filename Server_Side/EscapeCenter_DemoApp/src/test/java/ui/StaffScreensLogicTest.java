@@ -1,6 +1,7 @@
 package ui;
 
 import model.Booking;
+import model.BookingStatus;
 import model.BookingType;
 import model.Client;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,7 @@ class StaffScreensLogicTest {
     private static final Client DANA = new Client(1L, "Dana", "Levi", "0501234567", null);
 
     private static Booking game(String room, String startAt, String endAt) {
-        return new Booking(1L, room, startAt, endAt, DANA, 2, "beginner", null, null, BookingType.CLIENT, null, null);
+        return new Booking(1L, room, startAt, endAt, DANA, 2, "beginner", null, null, BookingType.CLIENT, null, BookingStatus.CONFIRMED, null);
     }
 
     @Test
@@ -100,6 +101,18 @@ class StaffScreensLogicTest {
         assertEquals(1, forRoomTwo.size());
         assertEquals("Room 2", forRoomTwo.get(0).firstRoom());
         assertEquals("Room 1", forRoomTwo.get(0).secondRoom());
+    }
+
+    @Test
+    void firstProblem_findsTheFirstWrongFieldInFormOrder() {
+        assertEquals(FormChecks.Field.FIRST_NAME,
+                FormChecks.firstProblem(" ", "", "", "").orElseThrow().field());
+        assertEquals(FormChecks.Field.PHONE,
+                FormChecks.firstProblem("Dana", "Levi", "---", "").orElseThrow().field());
+        assertEquals(FormChecks.Field.EMAIL,
+                FormChecks.firstProblem("Dana", "Levi", "050-123", "dana@").orElseThrow().field());
+        assertTrue(FormChecks.firstProblem("Dana", "Levi", "050-123", "").isEmpty());
+        assertTrue(FormChecks.firstProblem("Dana", "Levi", "050-123", "dana@example.com").isEmpty());
     }
 
     @Test

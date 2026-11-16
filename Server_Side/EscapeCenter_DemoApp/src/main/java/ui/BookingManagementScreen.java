@@ -2,12 +2,14 @@ package ui;
 
 import model.Booking;
 import model.BookingDetails;
+import model.BookingStatus;
 import model.BookingType;
 import model.Client;
 import model.CreateBookingRequest;
 import model.Room;
 import model.UpdateBookingRequest;
 import service.ApiService;
+import service.ServerMessages;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Platform;
@@ -18,6 +20,8 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -57,7 +61,23 @@ public class BookingManagementScreen {
     private static final int DAYS_IN_WEEK = 7;
     private static final String ALL_ROOMS_LABEL = "הכל";
     private static final String SAVE_FAILED_TITLE = "השמירה נכשלה";
-    private static final String OVERLAP_PREFIX = "⚠ חופף ";
+    private static final String OVERLAP_PREFIX = "חפיפה ";
+    private static final String SYNC_PENDING_LABEL = "מסנכרן…";
+    private static final String SYNC_OK_LABEL = "מסונכרן ";
+    private static final String SYNC_FAILED_LABEL = "אין חיבור לשרת";
+    private static final Color SYNC_PENDING_COLOR = Color.web("#6f6b62");
+    private static final Color SYNC_OK_COLOR = Color.web("#1a7f5a");
+    private static final Color SYNC_FAILED_COLOR = Color.web("#b42318");
+    private static final double SYNC_DOT_RADIUS = 5;
+    private static final String CANCEL_CONFIRM_MESSAGE = "לבטל את ההזמנה של %s %s בחדר %s, %s? אי אפשר לשחזר אותה.";
+    private static final String CANCEL_CONFIRM_TITLE = "ביטול הזמנה";
+    private static final String CANCEL_CONFIRM_YES = "כן, בטל את ההזמנה";
+    private static final String CANCEL_CONFIRM_NO = "השאר את ההזמנה";
+    private static final DateTimeFormatter CANCEL_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM HH:mm");
+    private static final List<String> SWATCH_COLORS = List.of("#fecaca", "#d1fae5", "#fef3c7", "#c7d2fe", "#e0e7ff");
+    private static final List<String> SWATCH_NAMES = List.of("אדום", "ירוק", "צהוב", "כחול", "תכלת");
+    private static final int MIN_STAFF_PARTICIPANTS = 2; // staff can book a pair even where customers need more
+    private static final String SEARCH_BUTTON_LABEL = "חיפוש";
     private static final String TODAY_SUFFIX = " · היום";
     private static final String NO_GAMES_LABEL = "אין משחקים";
     private static final String ONE_GAME_LABEL = "משחק אחד";
@@ -108,7 +128,7 @@ public class BookingManagementScreen {
         nextBtn.setTooltip(new Tooltip("עבור לשבוע הבא"));
         nextBtn.setAccessibleText("שבוע הבא");
 
-        Button todayBtn = new Button("📍 היום");
+        Button todayBtn = new Button("היום");
         todayBtn.getStyleClass().add("week-nav-btn");
         todayBtn.setTooltip(new Tooltip("חזור לשבוע הנוכחי"));
         todayBtn.setAccessibleText("חזור לשבוע הנוכחי");
@@ -116,7 +136,8 @@ public class BookingManagementScreen {
         weekLabel = new Label();
         weekLabel.getStyleClass().add("week-label");
 
-        Label syncIndicator = new Label("🔄");
+        Label syncIndicator = new Label();
+        showSync(syncIndicator, SYNC_PENDING_LABEL, SYNC_PENDING_COLOR);
         syncIndicator.getStyleClass().add("sync-indicator");
         syncIndicator.setTooltip(new Tooltip("סנכרון אוטומטי כל " + POLL_INTERVAL_SECONDS + " שניות"));
 
@@ -124,7 +145,11 @@ public class BookingManagementScreen {
         nextBtn.setOnAction(e -> goToWeek(weekStart.plusWeeks(1)));
         todayBtn.setOnAction(e -> goToWeek(LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY))));
 
-        HBox toolbar = new HBox(10, nextBtn, weekLabel, prevBtn, todayBtn, syncIndicator);
+        Button searchBtn = new Button(SEARCH_BUTTON_LABEL);
+        searchBtn.getStyleClass().add("week-nav-btn");
+        searchBtn.setOnAction(e -> BookingSearchDialog.pick(ownerStage).ifPresent(this::showBooking));
+
+        HBox toolbar = new HBox(10, nextBtn, weekLabel, prevBtn, todayBtn, searchBtn, syncIndicator);
         toolbar.getStyleClass().add("booking-toolbar");
         toolbar.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
@@ -278,7 +303,7 @@ public class BookingManagementScreen {
     }
 
     private void showSaveError(String reason) {
-        Alert alert = new Alert(Alert.AlertType.ERROR, reason);
+        Alert alert = new Alert(Alert.AlertType.ERROR, ServerMessages.inHebrew(reason));
         alert.setTitle(SAVE_FAILED_TITLE);
         alert.setHeaderText(null);
         if (ownerStage != null) alert.initOwner(ownerStage);
@@ -288,6 +313,16 @@ public class BookingManagementScreen {
     // ================================================================
     // Real-time sync
     // ================================================================
+
+    /** Shows the sync state as a dot and words, so it does not depend on telling two colors apart. */
+    private void showSync(Label indicator, String text, Color dotColor) {
+        indicator.setText(text);
+        indicator.setGraphic(new Circle(SYNC_DOT_RADIUS, dotColor));
+    }
+
+    private void showSyncOk(Label indicator) {
+        showSync(indicator, SYNC_OK_LABEL + LocalTime.now().format(timeFormat), SYNC_OK_COLOR);
+    }
 
     private void startPolling(Label syncIndicator) {
         pollingTimeline = new Timeline(new KeyFrame(
@@ -312,7 +347,7 @@ public class BookingManagementScreen {
                         .loadBookings(requestedWeekStart, requestedWeekStart.plusDays(DAYS_IN_WEEK - 1));
                 Platform.runLater(() -> {
                     if (fresh.isEmpty()) {
-                        syncIndicator.setText("🔴");
+                        showSync(syncIndicator, SYNC_FAILED_LABEL, SYNC_FAILED_COLOR);
                         return;
                     }
                     if (!requestedWeekStart.equals(weekStart)) {
@@ -326,14 +361,14 @@ public class BookingManagementScreen {
                         bookings.clear();
                         bookings.putAll(fresh.get());
                         rebuildCalendar();
-                        syncIndicator.setText("🟢");
+                        showSyncOk(syncIndicator);
                         System.out.println("[Sync] Calendar updated with " + fresh.get().size() + " bookings.");
                     } else {
-                        syncIndicator.setText("🔄");
+                        showSyncOk(syncIndicator);
                     }
                 });
             } catch (Exception e) {
-                Platform.runLater(() -> syncIndicator.setText("🔴"));
+                Platform.runLater(() -> showSync(syncIndicator, SYNC_FAILED_LABEL, SYNC_FAILED_COLOR));
                 System.err.println("[Sync] Polling error: " + e.getMessage());
             }
         }).start();
@@ -350,6 +385,14 @@ public class BookingManagementScreen {
         boolean todayIsInWeek = !today.isBefore(weekStart) && !today.isAfter(weekStart.plusDays(DAYS_IN_WEEK - 1));
         selectedDay = todayIsInWeek ? today : weekStart;
         reloadBookings();
+        rebuildCalendar();
+    }
+
+    /** Opens the week and day of a booking found by the search. */
+    private void showBooking(Booking booking) {
+        LocalDate day = booking.start().toLocalDate();
+        goToWeek(day.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY)));
+        selectedDay = day;
         rebuildCalendar();
     }
 
@@ -508,6 +551,8 @@ public class BookingManagementScreen {
             String overlapNote = overlapNote(existing);
             String shownNote = onTimeline ? "" : overlapNote;
             String typeLine = onTimeline && typeOf(existing) != BookingType.CLIENT ? "\n" + typeOf(existing) : "";
+            BookingStatus status = BookingSearchDialog.statusOf(existing);
+            typeLine += status == BookingStatus.CONFIRMED ? "" : "\n" + status;
             slotBtn.setText(timeRange + "\n" + existing.firstName() + " " + existing.lastName() + typeLine
                     + (shownNote.isEmpty() ? "" : "\n" + shownNote));
             // Color is persisted on the server — always use the server value
@@ -558,6 +603,44 @@ public class BookingManagementScreen {
         return booking.type() != null ? booking.type() : BookingType.CLIENT;
     }
 
+    /** One round swatch per booking color. The chosen color goes into {@code selectedColor}. */
+    private HBox colorSwatches(String currentColor, String[] selectedColor) {
+        ToggleGroup group = new ToggleGroup();
+        HBox row = new HBox(8);
+        for (int i = 0; i < SWATCH_COLORS.size(); i++) {
+            String color = SWATCH_COLORS.get(i);
+            ToggleButton swatch = new ToggleButton();
+            swatch.getStyleClass().add("color-swatch");
+            swatch.setStyle("-fx-background-color: " + color + ";");
+            swatch.setUserData(color);
+            swatch.setToggleGroup(group);
+            swatch.setSelected(color.equals(currentColor));
+            swatch.setTooltip(new Tooltip(SWATCH_NAMES.get(i)));
+            swatch.setAccessibleText("צבע " + SWATCH_NAMES.get(i));
+            row.getChildren().add(swatch);
+        }
+        // Clicking the chosen swatch again must not leave the booking with no color.
+        group.selectedToggleProperty().addListener((obs, previous, chosen) -> {
+            if (chosen == null) {
+                previous.setSelected(true);
+            } else {
+                selectedColor[0] = (String) chosen.getUserData();
+            }
+        });
+        return row;
+    }
+
+    private boolean confirmCancel(Booking booking) {
+        ButtonType yes = new ButtonType(CANCEL_CONFIRM_YES, ButtonBar.ButtonData.OK_DONE);
+        ButtonType no = new ButtonType(CANCEL_CONFIRM_NO, ButtonBar.ButtonData.CANCEL_CLOSE);
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION, CANCEL_CONFIRM_MESSAGE.formatted(
+                booking.firstName(), booking.lastName(), booking.roomName(), booking.start().format(CANCEL_DATE_FORMAT)), yes, no);
+        alert.setTitle(CANCEL_CONFIRM_TITLE);
+        alert.setHeaderText(null);
+        if (ownerStage != null) alert.initOwner(ownerStage);
+        return alert.showAndWait().filter(yes::equals).isPresent();
+    }
+
     private ToggleButton createRoomTab(String text) {
         ToggleButton tab = new ToggleButton(text);
         tab.getStyleClass().add("room-tab");
@@ -606,7 +689,9 @@ public class BookingManagementScreen {
         emailField.setAccessibleText("אימייל");
 
         ComboBox<Integer> participantsBox = new ComboBox<>();
-        participantsBox.getItems().addAll(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12);
+        for (int count = MIN_STAFF_PARTICIPANTS; count <= roomNamed(roomName).capacity(); count++) {
+            participantsBox.getItems().add(count);
+        }
         participantsBox.setValue(2);
         participantsBox.setAccessibleText("מספר משתתפים");
 
@@ -614,6 +699,11 @@ public class BookingManagementScreen {
         experienceBox.getItems().addAll("מתחילים", "מנוסים");
         experienceBox.setValue("מתחילים");
         experienceBox.setAccessibleText("רמת ניסיון");
+
+        ComboBox<BookingStatus> statusBox = new ComboBox<>();
+        statusBox.getItems().addAll(BookingStatus.CONFIRMED, BookingStatus.COMPLETED, BookingStatus.NO_SHOW);
+        statusBox.setValue(BookingStatus.CONFIRMED);
+        statusBox.setAccessibleText("סטטוס הזמנה");
 
         // What the client wrote when booking. Staff read it but write their own notes below.
         TextArea clientNotesArea = new TextArea();
@@ -636,6 +726,7 @@ public class BookingManagementScreen {
             participantsBox.setValue(existing.participants());
             experienceBox.setValue(existing.experience());
             typeBox.setValue(typeOf(existing));
+            statusBox.setValue(BookingSearchDialog.statusOf(existing));
             clientNotesArea.setText(existing.notes());
             internalNotesArea.setText(existing.internalNotes());
         }
@@ -651,51 +742,30 @@ public class BookingManagementScreen {
         if (existing != null) {
             grid.add(new Label("הערות הלקוח:"), 0, 7);  grid.add(clientNotesArea, 1, 7);
         }
+        if (existing != null) {
+            grid.add(new Label("סטטוס:"), 0, 11);       grid.add(statusBox, 1, 11);
+        }
         grid.add(new Label("הערות פנימיות:"), 0, 8);    grid.add(internalNotesArea, 1, 8);
 
         dialog.getDialogPane().setContent(grid);
 
-        ButtonType colorBtn = new ButtonType("שנה צבע", ButtonBar.ButtonData.HELP_2);
+        ButtonType saveType = new ButtonType("שמור", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(
-                colorBtn,
-                new ButtonType("שמור", ButtonBar.ButtonData.OK_DONE),
-                new ButtonType("בטל הזמנה", ButtonBar.ButtonData.OTHER),
+                saveType,
+                new ButtonType("בטל את ההזמנה", ButtonBar.ButtonData.OTHER),
                 new ButtonType("סגור", ButtonBar.ButtonData.CANCEL_CLOSE)
         );
 
-        // Use existing color from server, not a default
+        // Use existing color from server, not a default; the choice is saved with the rest of the form.
         final String[] selectedColor = {currentColor};
+        grid.add(new Label("צבע בלוח:"), 0, 9);
+        grid.add(colorSwatches(currentColor, selectedColor), 1, 9);
 
-        Button changeColorNode = (Button) dialog.getDialogPane().lookupButton(colorBtn);
-        changeColorNode.setTooltip(new Tooltip("שנה את צבע ההזמנה בלוח"));
-        changeColorNode.addEventFilter(ActionEvent.ACTION, event -> {
-            event.consume();
-
-            List<String> colorNames = Arrays.asList("אדום", "ירוק", "צהוב", "כחול", "כחלת");
-            List<String> bgColors = Arrays.asList("#fecaca", "#d1fae5", "#fef3c7", "#c7d2fe", "#e0e7ff");
-
-            ChoiceDialog<String> colorDialog = new ChoiceDialog<>("", colorNames);
-            colorDialog.setTitle("בחר צבע חדש");
-            colorDialog.setHeaderText("בחר צבע להזמנה");
-
-            colorDialog.showAndWait().ifPresent(name -> {
-                int idx = colorNames.indexOf(name);
-                if (idx >= 0) {
-                    selectedColor[0] = bgColors.get(idx);
-                    slotBtn.setStyle("-fx-background-color: " + selectedColor[0] + ";");
-
-                    // Immediately persist color change to server for existing bookings
-                    Booking current = bookings.get(key + "/" + roomName);
-                    if (current != null) {
-                        Booking updated = current.withColor(selectedColor[0]);
-                        bookings.put(key + "/" + roomName, updated);
-                        ApiService.getInstance().updateBooking(updated.id(),
-                                new UpdateBookingRequest(updated.client(), updated.details())).ifPresent(this::showSaveError);
-                        System.out.println("[BookingScreen] Color updated and saved: " + selectedColor[0]);
-                    }
-                }
-            });
-        });
+        // Shown when Save is pressed with a wrong field; the dialog stays open instead of the server refusing later.
+        Label formError = new Label();
+        formError.getStyleClass().add("form-error");
+        grid.add(formError, 1, 10);
+        FormChecks.guardSave(dialog, saveType, nameField, lastNameField, phoneField, emailField, formError);
 
         dialog.setResultConverter(button -> {
             if (button.getButtonData() == ButtonBar.ButtonData.OK_DONE) {
@@ -710,11 +780,14 @@ public class BookingManagementScreen {
                                 new CreateBookingRequest(roomNamed(roomName).id(), key, client, details))
                         : ApiService.getInstance().updateBooking(existing.id(), new UpdateBookingRequest(client, details));
                 failure.ifPresent(this::showSaveError);
+                if (failure.isEmpty() && existing != null && statusBox.getValue() != BookingSearchDialog.statusOf(existing)) {
+                    ApiService.getInstance().updateBookingStatus(existing.id(), statusBox.getValue()).ifPresent(this::showSaveError);
+                }
                 reloadBookings();
                 rebuildCalendar();
             }
 
-            if (button.getButtonData() == ButtonBar.ButtonData.OTHER && existing != null) {
+            if (button.getButtonData() == ButtonBar.ButtonData.OTHER && existing != null && confirmCancel(existing)) {
                 ApiService.getInstance().deleteBooking(existing.id()).ifPresent(this::showSaveError);
                 reloadBookings();
                 rebuildCalendar();

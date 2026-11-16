@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useMemo } from "react";
 import axios from "axios";
-import { useSearchParams } from "react-router-dom";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
+import { ChevronLeft, ChevronRight, Clock, Users } from "lucide-react";
+import { RoomIcon } from "../roomVisuals";
+import { ROOM_THEMES } from "../roomThemes";
+import { ROOMS } from "../roomsData";
+import { API_URL } from "../api";
+import BookingConfirmation from "./BookingConfirmation";
+import BookingDialog from "./BookingDialog";
+import { EMPTY_FORM, FIELD_ORDER, clampParticipants, fieldId, totalPrice, validateForm } from "./bookingForm";
 import "./Booking.css";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
-const MISSING_DETAILS_MESSAGE = "יש למלא שם פרטי, שם משפחה וטלפון.";
 const SAVE_FAILED_MESSAGE = "שגיאה בשמירת ההזמנה.";
-const SLOT_TAKEN_MESSAGE = "המשבצת הזו כבר נתפסה, בחרו שעה אחרת.";
-const BOOKING_SAVED_MESSAGE = "הזמנה נשמרה בהצלחה!";
+const SLOT_TAKEN_MESSAGE = "המשבצת הזו כבר נתפסה. בחרו שעה אחרת מהרשימה.";
 const TRY_AGAIN_MESSAGE = "ההזמנה לא נשמרה, נסו שוב.";
 // Sent by the API in the "code" field of a 409 that is not a taken slot.
 const TRY_AGAIN_CODE = "TRY_AGAIN";
@@ -20,22 +24,6 @@ const WEEKDAY_INITIALS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"
 const LOADING = "loading";
 const READY = "ready";
 const FAILED = "failed";
-const ROOM_ICONS = {
-    "אחוזת השכן": "🏚️",
-    "מקדש הקאמי": "⛩️",
-    "ההתערבות": "🕵️",
-    "אינפיניטי": "♾️",
-    "נרקוס": "💊"
-};
-const EMPTY_FORM = {
-    firstName: "",
-    lastName: "",
-    phoneNumber: "",
-    email: "",
-    experience: "מתחילים",
-    notes: "",
-    participants: 2
-};
 
 const startOfToday = () => {
     const today = new Date();
@@ -66,6 +54,45 @@ const monthCells = month => {
 const toDateParam = day => day.toLocaleDateString("en-CA");
 const timeOf = isoDateTime => isoDateTime.substring(11, 16);
 
+// The booking is a sequence, so the steps are numbered: room, date, time, then the details in the dialog.
+const StepHeading = ({ id, number, children }) => (
+    <h2 id={id} className="step-heading">
+        <span className="step-number">{number}</span>
+        {children}
+    </h2>
+);
+
+const priceRangeOf = room => {
+    const prices = room.prices.map(tier => tier.pricePerParticipant);
+    return prices.length ? `${Math.min(...prices)}-${Math.max(...prices)} ₪ למשתתף` : null;
+};
+
+const RoomBanner = ({ room }) => {
+    const theme = ROOM_THEMES[room.name];
+    const detailId = ROOMS.find(candidate => candidate.name === room.name)?.id;
+    const priceRange = priceRangeOf(room);
+    return (
+        <div className="room-banner">
+            <div className="room-banner-poster" aria-hidden="true">
+                {theme && <span className="room-banner-stamp">{theme.stamp}</span>}
+                <RoomIcon name={room.name} size={56} strokeWidth={1.5} />
+            </div>
+            <div>
+                <h3 className="heading-3">{room.name}</h3>
+                <p className="text-muted">{room.description}</p>
+                <ul className="room-banner-facts">
+                    <li><Users size={16} aria-hidden="true" />{room.minParticipants}-{room.capacity} משתתפים</li>
+                    <li><Clock size={16} aria-hidden="true" />{room.durationMinutes} דקות</li>
+                    {priceRange && <li>{priceRange}</li>}
+                </ul>
+                {detailId && (
+                    <Link to={`/rooms/${detailId}`} className="room-banner-link">פרטים ומחירון מלא</Link>
+                )}
+            </div>
+        </div>
+    );
+};
+
 const Booking = () => {
     const [searchParams] = useSearchParams();
     const preSelectedRoom = searchParams.get('room');
@@ -82,9 +109,25 @@ const Booking = () => {
     const [reloadCount, setReloadCount] = useState(0);
     const [selectedSlot, setSelectedSlot] = useState(null);
     const [formData, setFormData] = useState(EMPTY_FORM);
+    const [fieldErrors, setFieldErrors] = useState({});
+    // Set when the server refuses the booking; the dialog shows it above the form.
+    const [formError, setFormError] = useState(null);
+    // A message on the page itself for what happened after the dialog closed: the slot was taken.
+    const [notice, setNotice] = useState(null);
+    // The booking that was just saved; while it is set the page shows the confirmation instead of the booking steps.
+    const [confirmation, setConfirmation] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
 
     const reloadDay = () => setReloadCount(count => count + 1);
+
+    const openDialog = slot => {
+        setFieldErrors({});
+        setFormError(null);
+        setNotice(null);
+        setFormData(prev => ({ ...prev, participants: clampParticipants(selectedRoom, prev.participants) }));
+        setSelectedSlot(slot);
+    };
+    const closeDialog = () => setSelectedSlot(null);
 
     useEffect(() => {
         axios.get(`${API_URL}/api/rooms`)
@@ -117,21 +160,30 @@ const Booking = () => {
         };
     }, [selectedRoom, selectedDate, reloadCount]);
 
+    useEffect(() => {
+        setNotice(null);
+    }, [selectedRoom, selectedDate]);
+
     const handleInputChange = e => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+        setFieldErrors(prev => ({ ...prev, [name]: undefined }));
     };
 
     const handleSubmit = () => {
         if (!selectedSlot) return;
 
-        const { firstName, lastName, phoneNumber, email, experience, notes, participants } = formData;
-        if (![firstName, lastName, phoneNumber].every(value => value.trim())) {
-            alert(MISSING_DETAILS_MESSAGE);
+        const errors = validateForm(formData);
+        const firstWrongField = FIELD_ORDER.find(name => errors[name]);
+        if (firstWrongField) {
+            setFieldErrors(errors);
+            document.getElementById(fieldId(firstWrongField))?.focus();
             return;
         }
 
+        const { firstName, lastName, phoneNumber, email, experience, notes, participants } = formData;
         setIsSaving(true);
+        setFormError(null);
         axios.post(`${API_URL}/api/bookings`, {
             roomId: selectedRoom.id,
             startAt: selectedSlot.startAt,
@@ -139,28 +191,41 @@ const Booking = () => {
             booking: { participants: Number(participants), experience, notes, color: BOOKING_COLOR }
         })
             .then(() => {
-                alert(BOOKING_SAVED_MESSAGE);
-                setSelectedSlot(null);
+                closeDialog();
                 setFormData(EMPTY_FORM);
-                reloadDay();
+                setConfirmation({
+                    roomName: selectedRoom.name,
+                    startAt: selectedSlot.startAt,
+                    endAt: selectedSlot.endAt,
+                    participants: Number(participants),
+                    total: totalPrice(selectedRoom, participants),
+                    email: email.trim()
+                });
             })
             .catch(err => {
                 const status = err.response?.status;
                 if (status === HTTP_CONFLICT && err.response.data?.code === TRY_AGAIN_CODE) {
-                    alert(TRY_AGAIN_MESSAGE);
+                    setFormError({ message: TRY_AGAIN_MESSAGE });
                     return;
                 }
                 if (status === HTTP_CONFLICT) {
-                    alert(SLOT_TAKEN_MESSAGE);
-                    setSelectedSlot(null);
+                    closeDialog();
+                    setNotice({ type: "warning", text: SLOT_TAKEN_MESSAGE });
                     reloadDay();
                     return;
                 }
-                const serverReason = status === HTTP_BAD_REQUEST ? `\n${err.response.data.detail}` : "";
-                alert(SAVE_FAILED_MESSAGE + serverReason);
                 console.error(err);
+                setFormError({
+                    message: SAVE_FAILED_MESSAGE,
+                    reason: status === HTTP_BAD_REQUEST ? err.response.data.detail : undefined
+                });
             })
             .finally(() => setIsSaving(false));
+    };
+
+    const bookAnother = () => {
+        setConfirmation(null);
+        reloadDay();
     };
 
     const isBookable = day => day >= today && day <= lastDay;
@@ -209,7 +274,7 @@ const Booking = () => {
                         key={slot.startAt}
                         type="button"
                         className={`slot-button ${slot.available ? "available" : "booked"}`}
-                        onClick={() => setSelectedSlot(slot)}
+                        onClick={() => openDialog(slot)}
                         disabled={!slot.available}
                     >
                         <span className="slot-time">{timeOf(slot.startAt)}-{timeOf(slot.endAt)}</span>
@@ -222,35 +287,52 @@ const Booking = () => {
         );
     };
 
+    const themeKeyOf = roomName => ROOM_THEMES[roomName]?.key;
+
+    if (confirmation) {
+        return (
+            <div className="booking-page" data-room={themeKeyOf(confirmation.roomName)}>
+                <div className="container">
+                    <BookingConfirmation confirmation={confirmation} onBookAnother={bookAnother} />
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="booking-page">
+        <div className="booking-page" data-room={selectedRoom ? themeKeyOf(selectedRoom.name) : undefined}>
             <div className="container">
-                <div className="page-header">
+                <div className="booking-header">
                     <h1 className="heading-1">הזמנת חדר בריחה</h1>
-                    <p className="page-subtitle text-muted">
+                    <p className="booking-subtitle text-muted">
                         בחרו חדר, תאריך ושעה - ואנחנו נדאג לשאר
                     </p>
                 </div>
 
                 {isConnected && selectedRoom ? (
                     <>
-                        {/* Room Selector */}
+                        <section aria-labelledby="room-heading">
+                        <StepHeading id="room-heading" number={1}>בחרו חדר</StepHeading>
                         <div className="room-selector">
                             {rooms.map(room => (
                                 <button
                                     key={room.id}
+                                    data-room={themeKeyOf(room.name)}
                                     className={`room-tab ${selectedRoom.id === room.id ? "active" : ""}`}
+                                    aria-pressed={selectedRoom.id === room.id}
                                     onClick={() => setSelectedRoom(room)}
                                 >
-                                    <span className="room-icon">{ROOM_ICONS[room.name]}</span>
+                                    <RoomIcon name={room.name} className="room-icon" size={20} />
                                     <span className="room-label">{room.name}</span>
                                 </button>
                             ))}
                         </div>
+                        <RoomBanner room={selectedRoom} />
+                        </section>
 
                         <div className="calendar-wrapper">
                             <section className="date-picker" aria-labelledby="date-heading">
-                                <h2 id="date-heading" className="step-heading">בחרו תאריך</h2>
+                                <StepHeading id="date-heading" number={2}>בחרו תאריך</StepHeading>
                                 <div className="month-nav">
                                     {/* The page reads right to left, so "earlier" points right. */}
                                     <button
@@ -285,10 +367,15 @@ const Booking = () => {
                             </section>
 
                             <section className="slot-picker" aria-labelledby="slot-heading">
-                                <h2 id="slot-heading" className="step-heading">בחרו שעה</h2>
+                                <StepHeading id="slot-heading" number={3}>בחרו שעה</StepHeading>
                                 <p className="chosen-date">
                                     {selectedRoom.name}, {selectedDate.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
                                 </p>
+                                {notice && (
+                                    <p className={`slots-notice ${notice.type}`} role={notice.type === "warning" ? "alert" : "status"}>
+                                        {notice.text}
+                                    </p>
+                                )}
                                 {renderSlots()}
                             </section>
                         </div>
@@ -298,40 +385,17 @@ const Booking = () => {
                 )}
 
                 {selectedSlot && (
-                    <div className="booking-modal-overlay" onClick={() => setSelectedSlot(null)}>
-                        <div className="booking-modal" onClick={(e) => e.stopPropagation()}>
-                            <h3 className="heading-3">הזמנת משחק</h3>
-                            <div className="modal-info">
-                                <p><strong>חדר:</strong> {selectedRoom.name}</p>
-                                <p><strong>תאריך:</strong> {new Date(selectedSlot.startAt).toLocaleDateString("he-IL")}</p>
-                                <p><strong>שעה:</strong> {timeOf(selectedSlot.startAt)}-{timeOf(selectedSlot.endAt)}</p>
-                            </div>
-
-                            <div className="booking-form">
-                                <div className="form-row">
-                                    <input type="text" name="firstName" placeholder="שם פרטי" value={formData.firstName} onChange={handleInputChange} />
-                                    <input type="text" name="lastName" placeholder="שם משפחה" value={formData.lastName} onChange={handleInputChange} />
-                                </div>
-                                <input type="text" name="phoneNumber" placeholder="טלפון" value={formData.phoneNumber} onChange={handleInputChange} />
-                                <input type="email" name="email" placeholder="אימייל" value={formData.email} onChange={handleInputChange} />
-                                <div className="form-row">
-                                    <select name="participants" value={formData.participants} onChange={handleInputChange}>
-                                        {[...Array(selectedRoom.capacity - 1)].map((_, i) => <option key={i + 2} value={i + 2}>{i + 2} משתתפים</option>)}
-                                    </select>
-                                    <select name="experience" value={formData.experience} onChange={handleInputChange}>
-                                        <option value="מתחילים">מתחילים</option>
-                                        <option value="מנוסים">מנוסים</option>
-                                    </select>
-                                </div>
-                                <textarea name="notes" placeholder="הערות" value={formData.notes} onChange={handleInputChange}></textarea>
-
-                                <div className="modal-actions">
-                                    <button className="btn btn-primary" onClick={handleSubmit} disabled={isSaving}>אשר הזמנה</button>
-                                    <button className="btn btn-secondary" onClick={() => setSelectedSlot(null)}>ביטול</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <BookingDialog
+                        room={selectedRoom}
+                        slot={selectedSlot}
+                        form={formData}
+                        fieldErrors={fieldErrors}
+                        formError={formError}
+                        isSaving={isSaving}
+                        onChange={handleInputChange}
+                        onSubmit={handleSubmit}
+                        onClose={closeDialog}
+                    />
                 )}
             </div>
         </div>

@@ -1,11 +1,9 @@
 .navbar {
     position: sticky;
     top: 0;
-    background: rgba(13, 13, 13, 0.98);
-    backdrop-filter: blur(20px);
-    border-bottom: 1px solid rgba(255, 77, 0, 0.2);
+    background: rgba(15, 13, 11, 0.96);
+    border-bottom: 1px var(--border-style-soft) rgba(var(--accent-rgb), 0.4);
     z-index: var(--z-sticky);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
 }
 
 .nav-container {
@@ -25,19 +23,12 @@
     transition: transform var(--transition-base);
 }
 
-.logo:hover {
-    transform: scale(1.05);
-}
 
 .logo-text {
     font-family: var(--font-display);
     font-size: var(--font-size-2xl);
-    font-weight: var(--font-weight-extrabold);
-    background: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-tertiary));
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: -0.02em;
+    font-weight: var(--font-weight-display);
+    color: var(--color-accent-primary);
 }
 
 .nav-links {
@@ -67,14 +58,14 @@
     left: 50%;
     width: 0;
     height: 2px;
-    background: linear-gradient(90deg, var(--color-accent-primary), var(--color-accent-tertiary));
+    background: var(--color-accent-primary);
     transform: translateX(-50%);
     transition: width var(--transition-base);
 }
 
 .nav-link:hover {
     color: var(--color-text-primary);
-    background: rgba(255, 77, 0, 0.1);
+    background: rgba(var(--accent-rgb), 0.1);
 }
 
 .nav-link:hover::after {
@@ -83,7 +74,7 @@
 
 .nav-link.active {
     color: var(--color-accent-primary);
-    background: rgba(255, 77, 0, 0.15);
+    background: rgba(var(--accent-rgb), 0.15);
 }
 
 .nav-link.active::after {
@@ -122,7 +113,7 @@
 .mobile-nav-link:hover,
 .mobile-nav-link.active {
     color: var(--color-accent-primary);
-    background: rgba(255, 107, 53, 0.1);
+    background: rgba(var(--accent-rgb), 0.1);
 }
 
 .main-content {
@@ -155,10 +146,7 @@
     font-family: var(--font-display);
     font-size: var(--font-size-2xl);
     font-weight: var(--font-weight-bold);
-    background: linear-gradient(135deg, var(--color-accent-primary), var(--color-accent-secondary));
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: var(--color-accent-secondary);
 }
 
 .footer-subtitle {

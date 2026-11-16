@@ -17,13 +17,15 @@ import javafx.util.Duration;
  */
 public class LoginScreen {
 
+    private static final double FIELD_LABEL_GAP = 6;
+
     public void show(Stage stage) {
         stage.setTitle("Escape Center — התחברות");
         stage.setMinWidth(500);
         stage.setMinHeight(400);
 
         // ---- Card content ----
-        Label title = new Label("🔑 Escape Center");
+        Label title = new Label("Escape Center");
         title.getStyleClass().add("login-title");
 
         Label subtitle = new Label("התחבר למערכת ניהול חדרי הבריחה");
@@ -58,11 +60,8 @@ public class LoginScreen {
         loginBtn.setDefaultButton(true); // Enter key triggers this
 
         // ---- Layout ----
-        HBox userRow = new HBox(10, userLabel, userField);
-        userRow.setAlignment(Pos.CENTER_RIGHT);
-
-        HBox passRow = new HBox(10, passLabel, passField);
-        passRow.setAlignment(Pos.CENTER_RIGHT);
+        VBox userRow = labeledField(userLabel, userField);
+        VBox passRow = labeledField(passLabel, passField);
 
         VBox card = new VBox(14, title, subtitle, userRow, passRow, loginBtn, statusLabel);
         card.getStyleClass().add("login-card");
@@ -122,6 +121,15 @@ public class LoginScreen {
 
         // Auto-focus username field
         userField.requestFocus();
+    }
+
+    /** Label above its field, both reading right to left; the field fills the row so the text starts at the right edge. */
+    private static VBox labeledField(Label label, TextField field) {
+        field.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
+        field.setMaxWidth(Double.MAX_VALUE);
+        VBox row = new VBox(FIELD_LABEL_GAP, label, field);
+        row.setMaxWidth(Double.MAX_VALUE);
+        return row;
     }
 
     /** Shake animation for error feedback. */

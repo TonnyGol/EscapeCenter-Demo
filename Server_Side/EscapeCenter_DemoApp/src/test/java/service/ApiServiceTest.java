@@ -4,6 +4,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import model.Booking;
 import model.BookingDetails;
+import model.BookingStatus;
 import model.BookingType;
 import model.Client;
 import model.CreateBookingRequest;
@@ -58,6 +59,8 @@ class ApiServiceTest {
     private static final String CREATE_BOOKING = "POST /api/bookings";
     private static final String UPDATE_BOOKING = "PUT /api/bookings/5";
     private static final String DELETE_BOOKING = "DELETE /api/bookings/5";
+    private static final String SEARCH_BOOKINGS = "GET /api/bookings/search";
+    private static final String UPDATE_STATUS = "PUT /api/bookings/5/status";
     private static final String ROOM_SLOTS = "GET /api/rooms/1/availability";
     private static final String PHONE = "0501234567";
     private static final String BOOKING_SLOT_KEY = "2099-01-01T10:00/Vault";
@@ -175,6 +178,35 @@ class ApiServiceTest {
         Optional<List<Room>> rooms = api.loadRooms();
 
         assertEquals(List.of(new Room(1L, "Vault", 6, 60)), rooms.orElseThrow());
+    }
+
+    @Test
+    void searchBookings_sendsTheTextAndStatusInTheQuery() {
+        serverAnswers(SEARCH_BOOKINGS, 200, BOOKINGS_JSON);
+
+        Optional<List<Booking>> found = api.searchBookings(DAY, DAY.plusDays(1), " דנה כהן ", BookingStatus.NO_SHOW);
+
+        assertEquals(1, found.orElseThrow().size());
+        assertEquals("from=2099-01-01&to=2099-01-02&query=דנה+כהן&status=NO_SHOW", lastRequest.query());
+    }
+
+    @Test
+    void searchBookings_leavesOutTheStatusWhenAnyStatusIsWanted() {
+        serverAnswers(SEARCH_BOOKINGS, 200, "[]");
+
+        assertTrue(api.searchBookings(DAY, DAY, "", null).orElseThrow().isEmpty());
+
+        assertEquals("from=2099-01-01&to=2099-01-01&query=", lastRequest.query());
+    }
+
+    @Test
+    void updateBookingStatus_putsTheStatusName_andReturnsTheServersReasonOnRefusal() {
+        serverAnswers(UPDATE_STATUS, 204, "");
+        assertTrue(api.updateBookingStatus(5L, BookingStatus.COMPLETED).isEmpty());
+        assertEquals("{\"status\":\"COMPLETED\"}", lastRequest.body());
+
+        serverAnswers(UPDATE_STATUS, 400, PROBLEM_JSON);
+        assertEquals(DETAIL_REASON, api.updateBookingStatus(5L, BookingStatus.NO_SHOW).orElseThrow());
     }
 
     @Test

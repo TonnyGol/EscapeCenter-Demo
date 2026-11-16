@@ -21,6 +21,7 @@ public record Booking(
         String color,
         BookingType type,
         String internalNotes,
+        BookingStatus status,
         String createdAt
 ) {
     /** Key the calendar uses to find the booking of a slot: start time, then room. */
@@ -34,7 +35,7 @@ public record Booking(
 
     public Booking withColor(String newColor) {
         return new Booking(id, roomName, startAt, endAt, client, participants, experience, notes, newColor,
-                type, internalNotes, createdAt);
+                type, internalNotes, status, createdAt);
     }
 
     public LocalDateTime start() {
