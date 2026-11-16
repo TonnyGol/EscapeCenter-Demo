@@ -248,6 +248,13 @@
     border-color: var(--color-accent-primary);
     color: var(--color-on-accent);
     font-weight: var(--font-weight-bold);
+    box-shadow: var(--shadow-offset-pressed);
+    animation: popIn var(--duration-fast) var(--ease-out);
+}
+
+.day-cell:active:not(:disabled),
+.slot-button.available:active {
+    transform: scale(0.95);
 }
 
 .day-cell:disabled {
@@ -337,12 +344,18 @@
 
 .slot-button.available:hover {
     background: rgba(var(--accent-rgb), 0.2);
+    box-shadow: var(--shadow-offset-pressed);
 }
 
+/* Taken slots read at a glance: hatched, crossed-out time, no accent. */
 .slot-button.booked {
-    background: var(--color-bg-tertiary);
+    background: repeating-linear-gradient(135deg, var(--color-bg-tertiary) 0 6px, var(--color-bg-secondary) 6px 12px);
     color: var(--color-text-muted);
     cursor: not-allowed;
+}
+
+.slot-button.booked .slot-time {
+    text-decoration: line-through;
 }
 
 .error-message {
@@ -366,15 +379,17 @@
     align-items: center;
     justify-content: center;
     padding: var(--space-lg);
+    animation: fadeOnly var(--duration-base) both;
 }
 
 .booking-modal {
+    animation: popIn var(--duration-base) var(--ease-out) backwards;
     background: var(--color-bg-secondary);
     border-radius: var(--radius-xl);
     padding: var(--space-2xl);
     max-width: 500px;
     width: 100%;
-    box-shadow: var(--shadow-xl);
+    box-shadow: var(--shadow-xl), 0 0 60px rgba(var(--accent-rgb), 0.15);
     border: 2px var(--border-style-soft) var(--color-accent-primary);
     max-height: 90vh;
     overflow-y: auto;
@@ -386,6 +401,8 @@
     margin-bottom: var(--space-lg);
     color: var(--color-text-primary);
     text-align: center;
+    font-family: var(--font-display);
+    font-weight: var(--font-weight-display);
 }
 
 .modal-info {
@@ -527,8 +544,22 @@
     text-align: center;
 }
 
+/* "You're in": the stamp-red seal of the case file, tilted like the room stamps. */
 .confirmation-icon {
-    color: var(--color-accent-primary);
+    padding: var(--space-md);
+    color: var(--color-stamp);
+    border: 3px solid var(--color-stamp);
+    border-radius: var(--radius-full);
+    box-sizing: content-box;
+    transform: rotate(-8deg);
+    background: color-mix(in srgb, var(--color-stamp) 10%, transparent);
+    animation: stampIn var(--duration-stamp) var(--ease-out) 200ms both;
+}
+
+.confirmation {
+    border: 2px var(--border-style-soft) rgba(var(--accent-rgb), 0.6);
+    border-radius: var(--radius-xl);
+    background: radial-gradient(70% 50% at 50% 0%, rgba(var(--accent-rgb), 0.15) 0%, var(--color-bg-secondary) 100%);
 }
 
 .confirmation h1:focus-visible {
