@@ -61,6 +61,8 @@ public class BookingManagementScreen {
     private static final int DAYS_IN_WEEK = 7;
     private static final double WRAPPING_ROW_GAP = 8; // between the room tabs and between the day chips, across and down when they wrap
     private static final double TOOLBAR_GAP = 12;
+    private static final String ARRIVED_MARK = "✓ ";
+    private static final String NO_SHOW_MARK = "✕ ";
     private static final String ALL_ROOMS_LABEL = "הכל";
     private static final String SAVE_FAILED_TITLE = "השמירה נכשלה";
     private static final String OVERLAP_PREFIX = "חפיפה ";
@@ -554,26 +556,29 @@ public class BookingManagementScreen {
             String shownNote = onTimeline ? "" : overlapNote;
             String typeLine = onTimeline && typeOf(existing) != BookingType.CLIENT ? "\n" + typeOf(existing) : "";
             BookingStatus status = BookingSearchDialog.statusOf(existing);
-            typeLine += status == BookingStatus.CONFIRMED ? "" : "\n" + status;
+            typeLine += statusLine(status);
             slotBtn.setText(timeRange + "\n" + existing.firstName() + " " + existing.lastName() + typeLine
                     + (shownNote.isEmpty() ? "" : "\n" + shownNote));
             // Color is persisted on the server — always use the server value
             String color = existing.color() != null ? existing.color() : "#fecaca";
             slotBtn.setStyle("-fx-background-color: " + color + ";");
             slotBtn.getStyleClass().add("slot-booked");
+            if (status == BookingStatus.COMPLETED) slotBtn.getStyleClass().add("slot-completed");
+            if (status == BookingStatus.NO_SHOW) slotBtn.getStyleClass().add("slot-no-show");
             if (!shownNote.isEmpty()) slotBtn.getStyleClass().add("slot-overlap");
             slotBtn.setTooltip(new Tooltip(
                     room + " | " + timeRange + "\n" +
                     existing.firstName() + " " + existing.lastName() + " (" + typeOf(existing) + ")\n" +
                     "משתתפים: " + existing.participants()
-                    + (overlapNote.isEmpty() ? "" : "\n" + overlapNote)));
+                    + (overlapNote.isEmpty() ? "" : "\n" + overlapNote)
+                    + statusLine(status)));
         } else {
             slotBtn.getStyleClass().add("slot-available");
             slotBtn.setTooltip(new Tooltip(room + " | " + timeRange + " — פנוי"));
         }
 
         slotBtn.setAccessibleText(room + " " + timeRange +
-                (existing != null ? " הזמנה: " + existing.firstName() + " " + overlapNote(existing) : " פנוי"));
+                (existing != null ? " הזמנה: " + existing.firstName() + " " + overlapNote(existing) + statusNote(BookingSearchDialog.statusOf(existing)) : " פנוי"));
 
         String currentColor = (existing != null && existing.color() != null)
                 ? existing.color() : "#fecaca";
@@ -581,6 +586,21 @@ public class BookingManagementScreen {
         slotBtn.setOnAction(e -> openBookingModal(key, date, timeRange, slotBtn, room, currentColor));
 
         return slotBtn;
+    }
+
+    /** For a screen reader, which reads this instead of the block's text: the status in words, nothing for "confirmed". */
+    private static String statusNote(BookingStatus status) {
+        return status == BookingStatus.CONFIRMED ? "" : " " + status;
+    }
+
+    /** The extra line of a booking block for a status that is not the usual "confirmed". */
+    static String statusLine(BookingStatus status) {
+        return switch (status) {
+            case CONFIRMED -> "";
+            case COMPLETED -> "\n" + ARRIVED_MARK + status;
+            case NO_SHOW -> "\n" + NO_SHOW_MARK + status;
+            case CANCELLED -> "\n" + status;
+        };
     }
 
     /**

@@ -24,6 +24,14 @@ class StaffScreensLogicTest {
     }
 
     @Test
+    void statusLine_marksArrivedAndNoShow_andStaysEmptyForConfirmed() {
+        assertEquals("", BookingManagementScreen.statusLine(BookingStatus.CONFIRMED));
+        assertEquals("\n✓ הגיעו", BookingManagementScreen.statusLine(BookingStatus.COMPLETED));
+        assertEquals("\n✕ לא הגיעו", BookingManagementScreen.statusLine(BookingStatus.NO_SHOW));
+        assertEquals("\nבוטלה", BookingManagementScreen.statusLine(BookingStatus.CANCELLED));
+    }
+
+    @Test
     void overlaps_whenTwoGamesShareMinutes_evenIfTheyStartAtDifferentTimes() {
         Booking early = game("Room 1", "2026-11-17T18:30", "2026-11-17T19:15");
         Booking late = game("Room 2", "2026-11-17T19:00", "2026-11-17T20:00");

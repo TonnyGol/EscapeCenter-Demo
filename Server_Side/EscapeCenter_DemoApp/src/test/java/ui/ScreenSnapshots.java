@@ -20,6 +20,7 @@ import java.util.function.Supplier;
  * <pre>mvnw test-compile dependency:build-classpath -Dmdep.outputFile=target/cp.txt
  * java -cp "target/classes;target/test-classes;$(cat target/cp.txt)" ui.ScreenSnapshots</pre>
  * (mvn exec:java hides this class's errors and hangs on JavaFX's thread, so it runs with plain java.)
+ * Run it at most once a minute: the server limits requests per address and minute, and a second run answers 429.
  * The logged-in screens need the server running. With APP_ADMIN_USER / APP_ADMIN_PASSWORD in the environment it logs in
  * by itself, out of sight. Without them it shows the login window and waits for you to type and press login.
  */
@@ -29,6 +30,8 @@ public final class ScreenSnapshots {
     private static final String USER_VARIABLE = "APP_ADMIN_USER";
     private static final String PASSWORD_VARIABLE = "APP_ADMIN_PASSWORD";
     private static final String NAV_BUTTON_STYLE_CLASS = ".nav-button";
+    private static final String DAY_CHIP_STYLE_CLASS = ".day-chip";
+    private static final int BOOKINGS_NAV_INDEX = 1;
     private static final List<String> NAV_SCREEN_NAMES = List.of("dashboard", "bookings", "clients", "reports");
     private static final double OFFSCREEN_X = -5000; // the window renders fine out of sight
     private static final long SETTLE_MILLIS = 1500; // screens load their data in the background
@@ -73,8 +76,22 @@ public final class ScreenSnapshots {
                 return null;
             });
             save(stage, "staff-" + NAV_SCREEN_NAMES.get(index));
+            if (index == BOOKINGS_NAV_INDEX) saveEveryDayOfBookingsWeek(stage);
         }
         System.exit(0); // the bookings screen polls in the background
+    }
+
+    /** The all-rooms timeline shows one day at a time, so each day of the week gets its own picture. Runs on the bookings screen. */
+    private static void saveEveryDayOfBookingsWeek(Stage stage) throws Exception {
+        int dayCount = onFxThread(() -> stage.getScene().getRoot().lookupAll(DAY_CHIP_STYLE_CLASS).size());
+        for (int day = 0; day < dayCount; day++) {
+            int dayIndex = day;
+            onFxThread(() -> {
+                ((Button) List.copyOf(stage.getScene().getRoot().lookupAll(DAY_CHIP_STYLE_CLASS)).get(dayIndex)).fire();
+                return null;
+            });
+            save(stage, "staff-bookings-day-" + (day + 1));
+        }
     }
 
     private static void waitForNavigationShell(Stage stage) throws Exception {

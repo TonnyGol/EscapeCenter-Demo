@@ -27,6 +27,7 @@
     -ec-warn-tint: rgba(217, 119, 6, 0.12);
     -ec-warn-tint-strong: rgba(217, 119, 6, 0.22);
     -ec-danger: #b42318;
+    -ec-success: #1f7a4d;
     -ec-danger-tint: rgba(180, 35, 24, 0.10);
 
     -fx-base: -ec-paper;
@@ -430,6 +431,22 @@
 .slot-booked:hover {
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.18), 8, 0, 0, 2);
     -fx-translate-y: -1;
+}
+
+/* Arrived: a green edge. No-show: a dashed grey edge, at full strength so the text stays easy to read. */
+.slot-completed {
+    -fx-border-color: -ec-success;
+    -fx-border-width: 2;
+    -fx-border-radius: 8;
+    -fx-background-insets: 0;
+}
+
+.slot-no-show {
+    -fx-border-color: -ec-ink-faint;
+    -fx-border-style: dashed;
+    -fx-border-width: 2;
+    -fx-border-radius: 8;
+    -fx-background-insets: 0;
 }
 
 /* A game that shares minutes with a game in another room. The text names the minutes; the border makes it findable. */
