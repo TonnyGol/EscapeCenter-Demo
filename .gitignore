@@ -73,3 +73,7 @@ Thumbs.db
 # ===== Claude Code (local plugins: impeccable, ui-ux-pro-max) =====
 .claude/settings.local.json
 .claude/launch.json
+
+# Design-check cache and local settings
+.impeccable/
+screenshots/

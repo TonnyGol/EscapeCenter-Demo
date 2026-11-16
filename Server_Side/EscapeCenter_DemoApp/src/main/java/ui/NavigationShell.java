@@ -23,6 +23,7 @@ public class NavigationShell {
     private static final double NAV_ICON_SIZE = 18;
     private static final double NAV_ICON_GAP = 10;
     private static final double USER_ICON_SIZE = 14;
+    private static final double BRAND_MARK_SIZE = 40;
 
     private final Stage stage;
     private final StackPane contentArea = new StackPane();
@@ -59,7 +60,7 @@ public class NavigationShell {
         Label userLabel = Icons.label(username != null ? username : "", Icons.USER, USER_ICON_SIZE);
         userLabel.getStyleClass().add("sidebar-username");
 
-        VBox header = new VBox(4, appName, userLabel);
+        VBox header = new VBox(6, Icons.brandMark(BRAND_MARK_SIZE), appName, userLabel);
         header.getStyleClass().add("sidebar-header");
 
         // Separator
@@ -139,7 +140,12 @@ public class NavigationShell {
         scene.getStylesheets().add(
                 getClass().getClassLoader().getResource("styles.css").toExternalForm());
         stage.setScene(scene);
+        // The login window is small and keeps its size when the scene changes, so the shell would stay cramped at the minimum.
+        stage.setMaximized(true);
         stage.show();
+        // Otherwise the first sidebar button keeps the focus ring while another screen is the active one.
+        root.setFocusTraversable(true);
+        root.requestFocus();
     }
 
     /** Navigate to booking screen (called from dashboard quick-actions). */

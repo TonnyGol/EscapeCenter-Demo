@@ -18,11 +18,15 @@ import javafx.util.Duration;
 public class LoginScreen {
 
     private static final double FIELD_LABEL_GAP = 6;
+    private static final double BRAND_MARK_SIZE = 56;
+    private static final double WINDOW_WIDTH = 520;
+    private static final double WINDOW_HEIGHT = 600;
+    private static final double WINDOW_MIN_HEIGHT = 580; // the card is about 520 tall, with the title bar and some air around it
 
     public void show(Stage stage) {
         stage.setTitle("Escape Center — התחברות");
         stage.setMinWidth(500);
-        stage.setMinHeight(400);
+        stage.setMinHeight(WINDOW_MIN_HEIGHT);
 
         // ---- Card content ----
         Label title = new Label("Escape Center");
@@ -63,7 +67,7 @@ public class LoginScreen {
         VBox userRow = labeledField(userLabel, userField);
         VBox passRow = labeledField(passLabel, passField);
 
-        VBox card = new VBox(14, title, subtitle, userRow, passRow, loginBtn, statusLabel);
+        VBox card = new VBox(14, Icons.brandMark(BRAND_MARK_SIZE), title, subtitle, userRow, passRow, loginBtn, statusLabel);
         card.getStyleClass().add("login-card");
         card.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
         card.setAlignment(Pos.CENTER);
@@ -113,7 +117,7 @@ public class LoginScreen {
             }
         });
 
-        Scene scene = new Scene(root, 520, 440);
+        Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
         scene.getStylesheets().add(
                 getClass().getClassLoader().getResource("styles.css").toExternalForm());
         stage.setScene(scene);

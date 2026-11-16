@@ -45,7 +45,8 @@ final class DayTimelineView {
     private static final double PIXELS_PER_MINUTE = 1.3;
     private static final double AXIS_WIDTH = 44;
     private static final double GUTTER_WIDTH = 84;
-    private static final double COLUMN_MIN_WIDTH = 84; // 7 rooms and the overlap column fit a 1280px window; narrower windows scroll
+    private static final double COLUMN_MIN_WIDTH = 92; // 7 rooms and the overlap column fit a 1366px window; narrower windows scroll
+    private static final double ROOM_HEADER_HEIGHT = 52; // two lines: a wrapping label is otherwise given one line and cut with "..."
     private static final double TOP_PADDING = 12;
     private static final double BLOCK_SIDE_INSET = 3;
     private static final double BLOCK_VERTICAL_GAP = 2;
@@ -216,6 +217,7 @@ final class DayTimelineView {
             name.setPrefWidth(COLUMN_MIN_WIDTH);
             name.setMaxWidth(Double.MAX_VALUE);
             name.setWrapText(true);
+            name.setMinHeight(ROOM_HEADER_HEIGHT);
             HBox.setHgrow(name, Priority.ALWAYS);
             header.getChildren().add(name);
         }

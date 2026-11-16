@@ -4,6 +4,7 @@ import javafx.beans.value.ObservableValue;
 import javafx.scene.Group;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.Paint;
 import javafx.scene.shape.SVGPath;
@@ -25,10 +26,12 @@ final class Icons {
     static final String LOGOUT = "M9 21H4V3h5 M16 16l4-4-4-4 M20 12H9";
     static final String PHONE = "M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z";
     static final String MAIL = "M3 5h18v14H3z M3 7l9 6 9-6";
+    static final String KEYHOLE = "M12 3a5 5 0 0 1 2.5 9.3L16 21H8l1.5-8.7A5 5 0 0 1 12 3z";
 
     private static final double GRID_SIZE = 24;
     private static final double STROKE_WIDTH = 2;
     private static final double LABEL_ICON_GAP = 8;
+    private static final double BRAND_MARK_ICON_RATIO = 0.6; // keyhole size inside the rounded square
 
     private Icons() {
     }
@@ -44,6 +47,16 @@ final class Icons {
         SVGPath path = shape(pathData, size);
         path.setStroke(stroke);
         return new Group(path);
+    }
+
+    /** The venue's mark: a white keyhole on an accent rounded square, the same keyhole as the website's favicon. */
+    static Node brandMark(double size) {
+        StackPane mark = new StackPane(of(KEYHOLE, size * BRAND_MARK_ICON_RATIO, Color.WHITE));
+        mark.getStyleClass().add("brand-mark");
+        mark.setMinSize(size, size);
+        mark.setPrefSize(size, size);
+        mark.setMaxSize(size, size);
+        return mark;
     }
 
     /** A label with the icon before the text, in the label's own text color. */

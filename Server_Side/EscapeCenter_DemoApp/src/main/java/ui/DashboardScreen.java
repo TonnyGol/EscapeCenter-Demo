@@ -40,14 +40,12 @@ public class DashboardScreen {
         clientCard.setOnMouseClicked(e -> shell.navigateToClients());
         reportsCard.setOnMouseClicked(e -> shell.navigateToReports());
 
-        // One row of three, in the order of the sidebar
-        GridPane grid = new GridPane();
+        // One row of three in the order of the sidebar; in a narrow window the last card wraps to a second row.
+        FlowPane grid = new FlowPane();
         grid.getStyleClass().add("dashboard-grid");
         // In a right-to-left pane the left alignments sit on the reading start, next to the sidebar.
         grid.setAlignment(Pos.TOP_LEFT);
-        grid.add(bookingCard, 0, 0);
-        grid.add(clientCard, 1, 0);
-        grid.add(reportsCard, 2, 0);
+        grid.getChildren().addAll(bookingCard, clientCard, reportsCard);
 
         VBox pane = new VBox(20, welcome, sub, grid);
         pane.getStyleClass().add("dashboard-pane");

@@ -87,6 +87,12 @@
     -fx-effect: dropshadow(gaussian, rgba(60, 40, 20, 0.14), 24, 0, 0, 4);
 }
 
+.brand-mark {
+    -fx-background-color: -ec-accent;
+    -fx-background-radius: 14;
+    -fx-effect: dropshadow(gaussian, rgba(200, 69, 45, 0.30), 10, 0, 0, 3);
+}
+
 .login-title {
     -fx-font-size: 26px;
     -fx-font-weight: bold;
@@ -297,7 +303,6 @@
 }
 
 .booking-toolbar {
-    -fx-spacing: 12;
     -fx-alignment: center;
     -fx-padding: 0 0 8 0;
 }
@@ -326,7 +331,6 @@
 }
 
 .room-filter-bar {
-    -fx-spacing: 8;
     -fx-alignment: center;
     -fx-padding: 4 0;
 }
@@ -438,7 +442,6 @@
 
 /* ---- Day strip: picks the day the all-rooms timeline shows ---- */
 .day-strip {
-    -fx-spacing: 8;
     -fx-alignment: center;
 }
 

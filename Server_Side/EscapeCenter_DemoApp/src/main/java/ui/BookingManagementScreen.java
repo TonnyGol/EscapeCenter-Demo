@@ -59,6 +59,8 @@ public class BookingManagementScreen {
     );
 
     private static final int DAYS_IN_WEEK = 7;
+    private static final double WRAPPING_ROW_GAP = 8; // between the room tabs and between the day chips, across and down when they wrap
+    private static final double TOOLBAR_GAP = 12;
     private static final String ALL_ROOMS_LABEL = "הכל";
     private static final String SAVE_FAILED_TITLE = "השמירה נכשלה";
     private static final String OVERLAP_PREFIX = "חפיפה ";
@@ -90,11 +92,11 @@ public class BookingManagementScreen {
 
     private List<Room> rooms = List.of();
     private Map<String, List<LocalTime>> gameStarts = Map.of(); // room name -> start time of each game
-    private HBox roomFilter;
+    private FlowPane roomFilter;
     private ToggleGroup roomGroup;
     private LocalDate weekStart;
     private LocalDate selectedDay; // the day the all-rooms view shows
-    private HBox dayStrip;
+    private FlowPane dayStrip;
     private ToggleButton allRoomsTab;
     private final OverlapPanel overlapPanel = new OverlapPanel();
     private Label weekLabel;
@@ -149,12 +151,12 @@ public class BookingManagementScreen {
         searchBtn.getStyleClass().add("week-nav-btn");
         searchBtn.setOnAction(e -> BookingSearchDialog.pick(ownerStage).ifPresent(this::showBooking));
 
-        HBox toolbar = new HBox(10, nextBtn, weekLabel, prevBtn, todayBtn, searchBtn, syncIndicator);
+        HBox toolbar = new HBox(TOOLBAR_GAP, nextBtn, weekLabel, prevBtn, todayBtn, searchBtn, syncIndicator);
         toolbar.getStyleClass().add("booking-toolbar");
         toolbar.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
         // ---- Room Filter Tabs ----
-        roomFilter = new HBox(8);
+        roomFilter = new FlowPane(WRAPPING_ROW_GAP, WRAPPING_ROW_GAP);
         roomFilter.getStyleClass().add("room-filter-bar");
         roomFilter.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
@@ -186,7 +188,7 @@ public class BookingManagementScreen {
         });
 
         // ---- Day strip (all-rooms view) ----
-        dayStrip = new HBox(8);
+        dayStrip = new FlowPane(WRAPPING_ROW_GAP, WRAPPING_ROW_GAP);
         dayStrip.getStyleClass().add("day-strip");
         dayStrip.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
