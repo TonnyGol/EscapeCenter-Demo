@@ -31,7 +31,8 @@ app:
   rate-limit:
     # Per client address and minute. Staff calls and failed logins both carry an Authorization header.
     bookings-per-minute: 10
-    authenticated-per-minute: 30
+    # All staff computers of a venue share one address, and each open bookings screen asks every 10 seconds.
+    authenticated-per-minute: 120
   outbox:
     # Pause between runs of the publisher that sends saved booking events to RabbitMQ.
     publish-delay-ms: 3000

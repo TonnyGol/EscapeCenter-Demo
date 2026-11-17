@@ -131,6 +131,23 @@ class BookingServiceTest {
     }
 
     @Test
+    void createBooking_customerCannotSetTheBookingColor_butStaffCan() {
+        stubRoom();
+        LocalDateTime startAt = firstGameOn(LocalDate.now().plusDays(1));
+        when(clientRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.empty());
+        when(clientRepository.save(any(Client.class))).thenAnswer(call -> call.getArgument(0));
+        when(bookingRepository.existsByRoomIdAndStartAt(ROOM_ID, startAt)).thenReturn(false);
+
+        bookingService.createBooking(request(startAt, 4), false);
+        bookingService.createBooking(request(startAt, 4), true);
+
+        ArgumentCaptor<Booking> saved = ArgumentCaptor.forClass(Booking.class);
+        verify(bookingRepository, org.mockito.Mockito.times(2)).save(saved.capture());
+        assertEquals(null, saved.getAllValues().get(0).getColor());
+        assertEquals("red", saved.getAllValues().get(1).getColor());
+    }
+
+    @Test
     void createBooking_savesBookingCreatedEventInTheOutbox() {
         stubRoom();
         when(clientRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.empty());

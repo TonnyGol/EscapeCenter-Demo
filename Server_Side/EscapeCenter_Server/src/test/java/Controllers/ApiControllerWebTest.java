@@ -87,7 +87,7 @@ class ApiControllerWebTest {
     }
 
     private static BookingDetails bookingDetails() {
-        return new BookingDetails(4, "beginner", "", "red", null, null);
+        return new BookingDetails(4, "beginner", "", "#fecaca", null, null);
     }
 
     private MockHttpServletRequestBuilder withJson(MockHttpServletRequestBuilder request, Object body) throws Exception {
@@ -163,6 +163,15 @@ class ApiControllerWebTest {
         mockMvc.perform(createRequest(""))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value(containsString("client.firstName")));
+    }
+
+    @Test
+    void createBooking_colorThatIsNotAHexColorIs400_soItCannotCarryStyling() throws Exception {
+        BookingDetails styled = new BookingDetails(4, "beginner", "", "red;-fx-font-size:99", null, null);
+
+        mockMvc.perform(withJson(post(BOOKINGS_URL), new CreateBookingRequest(ROOM_ID, START_AT, clientDetails("Dana"), styled)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(containsString("booking.color")));
     }
 
     @Test

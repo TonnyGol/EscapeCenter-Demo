@@ -188,11 +188,12 @@ public class BookingService {
     private static void copyDetails(Booking booking, BookingDetails details) {
         booking.setParticipants(details.participants());
         booking.setExperience(details.experience());
-        booking.setColor(details.color());
     }
 
-    // A customer's request never reaches here, so a public caller cannot set the type or write staff notes.
+    // A customer's request never reaches here, so a public caller cannot set the color (the staff app writes it into its
+    // styling), the type or the staff notes.
     private static void copyStaffDetails(Booking booking, BookingDetails details) {
+        booking.setColor(details.color());
         if (details.type() != null) {
             booking.setType(details.type());
         }

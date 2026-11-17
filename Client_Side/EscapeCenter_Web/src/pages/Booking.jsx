@@ -19,7 +19,6 @@ const TRY_AGAIN_MESSAGE = "ההזמנה לא נשמרה, נסו שוב.";
 const TRY_AGAIN_CODE = "TRY_AGAIN";
 const HTTP_BAD_REQUEST = 400;
 const HTTP_CONFLICT = 409;
-const BOOKING_COLOR = "#fecaca";
 const MONTHS_BOOKABLE_AHEAD = 3;
 const WEEKDAY_INITIALS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
 const LOADING = "loading";
@@ -192,7 +191,7 @@ const Booking = () => {
             roomId: selectedRoom.id,
             startAt: selectedSlot.startAt,
             client: { firstName, lastName, phoneNumber, email },
-            booking: { participants: Number(participants), experience, notes, color: BOOKING_COLOR }
+            booking: { participants: Number(participants), experience, notes }
         })
             .then(() => {
                 closeDialog();
