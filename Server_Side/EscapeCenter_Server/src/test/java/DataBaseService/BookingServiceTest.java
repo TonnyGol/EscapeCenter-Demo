@@ -102,7 +102,7 @@ class BookingServiceTest {
     }
 
     private static BookingDetails bookingDetails(int participants) {
-        return new BookingDetails(participants, "beginner", "no notes", "red");
+        return new BookingDetails(participants, "beginner", "no notes", "red", null, null);
     }
 
     private static CreateBookingRequest request(LocalDateTime startAt, int participants) {
@@ -128,6 +128,23 @@ class BookingServiceTest {
         assertEquals(startAt, saved.getValue().getStartAt());
         assertEquals(startAt.plusMinutes(GAME_MINUTES), saved.getValue().getEndAt());
         assertEquals(4, saved.getValue().getParticipants());
+    }
+
+    @Test
+    void createBooking_customerCannotSetTheBookingColor_butStaffCan() {
+        stubRoom();
+        LocalDateTime startAt = firstGameOn(LocalDate.now().plusDays(1));
+        when(clientRepository.findByPhoneNumber(PHONE)).thenReturn(Optional.empty());
+        when(clientRepository.save(any(Client.class))).thenAnswer(call -> call.getArgument(0));
+        when(bookingRepository.existsByRoomIdAndStartAt(ROOM_ID, startAt)).thenReturn(false);
+
+        bookingService.createBooking(request(startAt, 4), false);
+        bookingService.createBooking(request(startAt, 4), true);
+
+        ArgumentCaptor<Booking> saved = ArgumentCaptor.forClass(Booking.class);
+        verify(bookingRepository, org.mockito.Mockito.times(2)).save(saved.capture());
+        assertEquals(null, saved.getAllValues().get(0).getColor());
+        assertEquals("red", saved.getAllValues().get(1).getColor());
     }
 
     @Test

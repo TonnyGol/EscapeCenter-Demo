@@ -20,13 +20,17 @@ import javafx.util.Duration;
  */
 public class NavigationShell {
 
+    private static final double NAV_ICON_SIZE = 18;
+    private static final double NAV_ICON_GAP = 10;
+    private static final double USER_ICON_SIZE = 14;
+    private static final double BRAND_MARK_SIZE = 40;
+
     private final Stage stage;
     private final StackPane contentArea = new StackPane();
     private final VBox sidebar = new VBox();
     private Button activeButton;
 
     // Screen panes (lazy-initialized)
-    private Node dashboardPane;
     private Node bookingPane;
     private Node clientsPane;
 
@@ -47,15 +51,15 @@ public class NavigationShell {
         sidebar.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
         // App name
-        Label appName = new Label("🔑 Escape Center");
+        Label appName = new Label("Escape Center");
         appName.getStyleClass().add("sidebar-app-name");
 
         // Username
         String username = Session.getInstance().getUsername();
-        Label userLabel = new Label("👤 " + (username != null ? username : ""));
+        Label userLabel = Icons.label(username != null ? username : "", Icons.USER, USER_ICON_SIZE);
         userLabel.getStyleClass().add("sidebar-username");
 
-        VBox header = new VBox(4, appName, userLabel);
+        VBox header = new VBox(6, Icons.brandMark(BRAND_MARK_SIZE), appName, userLabel);
         header.getStyleClass().add("sidebar-header");
 
         // Separator
@@ -64,11 +68,11 @@ public class NavigationShell {
         sep.setMaxWidth(Double.MAX_VALUE);
 
         // Navigation buttons
-        Button dashBtn = createNavButton("📊  לוח בקרה", "מעבר ללוח הבקרה הראשי");
-        Button bookingBtn = createNavButton("📅  הזמנות", "ניהול הזמנות וחדרי בריחה");
-        Button clientBtn = createNavButton("👥  לקוחות", "ניהול מאגר לקוחות");
-        Button reportsBtn = createNavButton("📋  דו\"חות", "צפייה בדו\"חות — בקרוב");
-        Button logoutBtn = createNavButton("🚪  התנתק", "התנתקות וחזרה למסך הכניסה");
+        Button dashBtn = createNavButton("לוח בקרה", Icons.DASHBOARD, "מעבר ללוח הבקרה הראשי");
+        Button bookingBtn = createNavButton("הזמנות", Icons.CALENDAR, "ניהול הזמנות וחדרי בריחה");
+        Button clientBtn = createNavButton("לקוחות", Icons.USERS, "ניהול מאגר לקוחות");
+        Button reportsBtn = createNavButton("דו\"חות", Icons.REPORT, "משחקים ששוחקו והוזמנו השבוע והחודש");
+        Button logoutBtn = createNavButton("התנתק", Icons.LOGOUT, "התנתקות וחזרה למסך הכניסה");
         logoutBtn.getStyleClass().add("nav-button-logout");
 
         // Spacer to push logout to bottom
@@ -94,8 +98,8 @@ public class NavigationShell {
         // ---- Button Actions ----
         dashBtn.setOnAction(e -> {
             setActiveButton(dashBtn);
-            if (dashboardPane == null) dashboardPane = new DashboardScreen().createPane(this);
-            switchContent(dashboardPane);
+            // A fresh pane each time, so today's numbers are never from an earlier visit.
+            switchContent(new DashboardScreen().createPane(this));
         });
 
         bookingBtn.setOnAction(e -> {
@@ -115,13 +119,9 @@ public class NavigationShell {
         });
 
         reportsBtn.setOnAction(e -> {
-            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
-                    javafx.scene.control.Alert.AlertType.INFORMATION,
-                    "דו\"חות — תכונה זו תהיה זמינה בקרוב!",
-                    javafx.scene.control.ButtonType.OK
-            );
-            alert.setHeaderText(null);
-            alert.showAndWait();
+            setActiveButton(reportsBtn);
+            // A fresh pane each time, so the numbers are never from an earlier visit.
+            switchContent(new ReportsScreen().createPane());
         });
 
         logoutBtn.setOnAction(e -> {
@@ -139,7 +139,12 @@ public class NavigationShell {
         scene.getStylesheets().add(
                 getClass().getClassLoader().getResource("styles.css").toExternalForm());
         stage.setScene(scene);
+        // The login window is small and keeps its size when the scene changes, so the shell would stay cramped at the minimum.
+        stage.setMaximized(true);
         stage.show();
+        // Otherwise the first sidebar button keeps the focus ring while another screen is the active one.
+        root.setFocusTraversable(true);
+        root.requestFocus();
     }
 
     /** Navigate to booking screen (called from dashboard quick-actions). */
@@ -163,10 +168,22 @@ public class NavigationShell {
         }
     }
 
+    /** Navigate to reports screen. */
+    public void navigateToReports() {
+        for (Node node : sidebar.getChildren()) {
+            if (node instanceof Button btn && btn.getText().contains("דו\"חות")) {
+                btn.fire();
+                break;
+            }
+        }
+    }
+
     // ---- Helpers ----
 
-    private Button createNavButton(String text, String tooltipText) {
+    private Button createNavButton(String text, String iconPath, String tooltipText) {
         Button btn = new Button(text);
+        btn.setGraphic(Icons.of(iconPath, NAV_ICON_SIZE, btn.textFillProperty()));
+        btn.setGraphicTextGap(NAV_ICON_GAP);
         btn.getStyleClass().add("nav-button");
         btn.setMaxWidth(Double.MAX_VALUE);
         btn.setTooltip(new Tooltip(tooltipText));

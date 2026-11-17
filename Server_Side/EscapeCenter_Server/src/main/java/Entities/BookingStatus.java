@@ -2,5 +2,7 @@ package Entities;
 
 public enum BookingStatus {
     CONFIRMED,
-    CANCELLED
+    CANCELLED,
+    COMPLETED,
+    NO_SHOW
 }

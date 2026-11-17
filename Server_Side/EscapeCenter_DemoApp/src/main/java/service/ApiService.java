@@ -1,6 +1,7 @@
 package service;
 
 import model.Booking;
+import model.BookingStatus;
 import model.Client;
 import model.CreateBookingRequest;
 import model.Room;
@@ -11,6 +12,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -158,6 +161,27 @@ public final class ApiService {
     }
 
     /**
+     * Find bookings between two dates by client name, phone or email and by status.
+     * @param query text to look for; blank matches everyone
+     * @param status the status to keep; null keeps every status
+     * @return the bookings, or empty if the server did not answer
+     */
+    public Optional<List<Booking>> searchBookings(LocalDate from, LocalDate to, String query, BookingStatus status) {
+        String path = BOOKINGS_PATH + "/search?from=" + from + "&to=" + to
+                + "&query=" + URLEncoder.encode(query == null ? "" : query.trim(), StandardCharsets.UTF_8)
+                + (status == null ? "" : "&status=" + status.name());
+        return load(path, new TypeReference<List<Booking>>() {});
+    }
+
+    /**
+     * Mark a booking as completed, no-show and so on.
+     * @return empty if the server accepted it, otherwise the reason it refused
+     */
+    public Optional<String> updateBookingStatus(Long bookingId, BookingStatus status) {
+        return sendJson(request(BOOKINGS_PATH + "/" + bookingId + "/status"), "PUT", Map.of("status", status.name()));
+    }
+
+    /**
      * Delete a booking.
      * @return empty if the server accepted it, otherwise the reason it refused
      */
@@ -178,6 +202,22 @@ public final class ApiService {
             byPhone.put(client.phoneNumber(), client);
         }
         return byPhone;
+    }
+
+    /**
+     * Replace a client's name, phone and email.
+     * @return empty if the server accepted it, otherwise the reason it refused
+     */
+    public Optional<String> updateClient(Client client) {
+        return sendJson(request(CLIENTS_PATH + "/" + client.id()), "PUT", client);
+    }
+
+    /**
+     * Load every booking of one client, newest game first.
+     * @return the bookings, or empty if the server did not answer
+     */
+    public Optional<List<Booking>> loadClientBookings(Long clientId) {
+        return load(CLIENTS_PATH + "/" + clientId + "/bookings", new TypeReference<List<Booking>>() {});
     }
 
     // ---- Shared request helpers ----

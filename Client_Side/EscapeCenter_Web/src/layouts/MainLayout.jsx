@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, Calendar, Home as HomeIcon, DoorOpen } from 'lucide-react';
+import { VENUE } from '../roomsData';
 import './MainLayout.css';
 
 const MainLayout = ({ children }) => {
@@ -43,7 +44,7 @@ const MainLayout = ({ children }) => {
                     <button
                         className="mobile-menu-btn"
                         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                        aria-label="Toggle menu"
+                        aria-label="פתיחה וסגירה של התפריט"
                     >
                         {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
@@ -75,12 +76,12 @@ const MainLayout = ({ children }) => {
                 <div className="container">
                     <div className="footer-content">
                         <div className="footer-section">
-                            <h3 className="footer-title">EscapeCenter</h3>
-                            <p className="footer-text">חווית בריחה בלתי נשכחת</p>
+                            <h2 className="footer-title">EscapeCenter</h2>
+                            <p className="footer-text">מתחם חדרי הבריחה בראשון לציון</p>
                         </div>
 
                         <div className="footer-section">
-                            <h4 className="footer-subtitle">קישורים</h4>
+                            <h3 className="footer-subtitle">קישורים</h3>
                             <div className="footer-links">
                                 {navLinks.map((link) => (
                                     <Link key={link.path} to={link.path} className="footer-link">
@@ -91,14 +92,18 @@ const MainLayout = ({ children }) => {
                         </div>
 
                         <div className="footer-section">
-                            <h4 className="footer-subtitle">צור קשר</h4>
-                            <p className="footer-text">טלפון: 052-1234567</p>
-                            <p className="footer-text">info@escapecenter.co.il</p>
+                            <h3 className="footer-subtitle">צור קשר</h3>
+                            <p className="footer-text">{VENUE.address}</p>
+                            <p className="footer-text">טלפון: <span dir="ltr">{VENUE.phone}</span></p>
+                            <p className="footer-text"><span dir="ltr">{VENUE.email}</span></p>
+                            {VENUE.hours.map(slot => (
+                                <p key={slot.days} className="footer-text">{slot.days}: <span dir="ltr">{slot.time}</span></p>
+                            ))}
                         </div>
                     </div>
 
                     <div className="footer-bottom">
-                        <p>&copy; {new Date().getFullYear()} EscapeCenter. All rights reserved.</p>
+                        <p>&copy; {new Date().getFullYear()} EscapeCenter. כל הזכויות שמורות.</p>
                     </div>
                 </div>
             </footer>

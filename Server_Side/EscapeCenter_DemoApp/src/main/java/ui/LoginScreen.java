@@ -17,13 +17,19 @@ import javafx.util.Duration;
  */
 public class LoginScreen {
 
+    private static final double FIELD_LABEL_GAP = 6;
+    private static final double BRAND_MARK_SIZE = 56;
+    private static final double WINDOW_WIDTH = 520;
+    private static final double WINDOW_HEIGHT = 600;
+    private static final double WINDOW_MIN_HEIGHT = 580; // the card is about 520 tall, with the title bar and some air around it
+
     public void show(Stage stage) {
         stage.setTitle("Escape Center — התחברות");
         stage.setMinWidth(500);
-        stage.setMinHeight(400);
+        stage.setMinHeight(WINDOW_MIN_HEIGHT);
 
         // ---- Card content ----
-        Label title = new Label("🔑 Escape Center");
+        Label title = new Label("Escape Center");
         title.getStyleClass().add("login-title");
 
         Label subtitle = new Label("התחבר למערכת ניהול חדרי הבריחה");
@@ -58,13 +64,10 @@ public class LoginScreen {
         loginBtn.setDefaultButton(true); // Enter key triggers this
 
         // ---- Layout ----
-        HBox userRow = new HBox(10, userLabel, userField);
-        userRow.setAlignment(Pos.CENTER_RIGHT);
+        VBox userRow = labeledField(userLabel, userField);
+        VBox passRow = labeledField(passLabel, passField);
 
-        HBox passRow = new HBox(10, passLabel, passField);
-        passRow.setAlignment(Pos.CENTER_RIGHT);
-
-        VBox card = new VBox(14, title, subtitle, userRow, passRow, loginBtn, statusLabel);
+        VBox card = new VBox(14, Icons.brandMark(BRAND_MARK_SIZE), title, subtitle, userRow, passRow, loginBtn, statusLabel);
         card.getStyleClass().add("login-card");
         card.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
         card.setAlignment(Pos.CENTER);
@@ -114,7 +117,7 @@ public class LoginScreen {
             }
         });
 
-        Scene scene = new Scene(root, 520, 440);
+        Scene scene = new Scene(root, WINDOW_WIDTH, WINDOW_HEIGHT);
         scene.getStylesheets().add(
                 getClass().getClassLoader().getResource("styles.css").toExternalForm());
         stage.setScene(scene);
@@ -122,6 +125,15 @@ public class LoginScreen {
 
         // Auto-focus username field
         userField.requestFocus();
+    }
+
+    /** Label above its field, both reading right to left; the field fills the row so the text starts at the right edge. */
+    private static VBox labeledField(Label label, TextField field) {
+        field.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
+        field.setMaxWidth(Double.MAX_VALUE);
+        VBox row = new VBox(FIELD_LABEL_GAP, label, field);
+        row.setMaxWidth(Double.MAX_VALUE);
+        return row;
     }
 
     /** Shake animation for error feedback. */

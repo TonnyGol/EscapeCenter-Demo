@@ -1,0 +1,142 @@
+/* The room poster card and the grid that holds seven of them: four on top, three below.
+   shortcut: the spans below fit exactly seven rooms, with an eighth the last card sits alone; switch to auto-fit then. */
+
+.room-grid {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: var(--space-xl);
+}
+
+.room-grid > li {
+    grid-column: span 3;
+}
+
+.room-grid > li:nth-child(n + 5) {
+    grid-column: span 4;
+}
+
+/* Cards deal in one after another. */
+.room-grid > li {
+    animation: riseIn var(--duration-slow) var(--ease-out) backwards;
+}
+
+.room-grid > li:nth-child(2) { animation-delay: 60ms; }
+.room-grid > li:nth-child(3) { animation-delay: 120ms; }
+.room-grid > li:nth-child(4) { animation-delay: 180ms; }
+.room-grid > li:nth-child(5) { animation-delay: 240ms; }
+.room-grid > li:nth-child(6) { animation-delay: 300ms; }
+.room-grid > li:nth-child(7) { animation-delay: 360ms; }
+
+.room-card {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    color: inherit;
+    text-decoration: none;
+    background: var(--color-bg-secondary);
+    border: 1px var(--border-style-soft) rgba(var(--accent-rgb), 0.5);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.room-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--color-accent-primary);
+}
+
+.room-card:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 3px;
+}
+
+.room-card-poster {
+    position: relative;
+    display: grid;
+    place-items: center;
+    aspect-ratio: 16 / 10;
+    color: var(--color-accent-primary);
+    background: radial-gradient(90% 90% at 50% 40%, rgba(var(--accent-rgb), 0.28) 0%, var(--color-bg-primary) 80%);
+}
+
+.room-card-stamp {
+    position: absolute;
+    top: var(--space-sm);
+    inset-inline-start: var(--space-sm);
+    border: 2px solid var(--color-accent-primary);
+    padding: 0 var(--space-xs);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: 0.08em;
+    transform: rotate(-5deg);
+    background: rgba(15, 13, 11, 0.6);
+}
+
+.room-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    padding: var(--space-lg);
+    flex: 1;
+}
+
+.room-card-teaser {
+    color: var(--color-text-secondary);
+    flex: 1;
+}
+
+.room-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs) var(--space-lg);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+.room-card-meta span,
+.room-card-award {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.room-card-award {
+    font-size: var(--font-size-sm);
+    color: var(--color-accent-tertiary);
+}
+
+.room-card-more {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-accent-primary);
+}
+
+@media (max-width: 1100px) {
+    .room-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .room-grid > li,
+    .room-grid > li:nth-child(n + 5) {
+        grid-column: auto;
+    }
+
+    .room-grid > li:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+        justify-self: center;
+        width: calc(50% - var(--space-xl) / 2);
+    }
+}
+
+@media (max-width: 560px) {
+    .room-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .room-grid > li:last-child:nth-child(odd) {
+        width: 100%;
+    }
+}

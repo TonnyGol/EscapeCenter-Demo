@@ -1,24 +1,29 @@
 /* ==========================================
    ESCAPECENTER DESIGN SYSTEM
-   Dark/Mystery Theme for Immersive Experience
+   Vault look: warm near-black, brass accent, cream text.
+   Chunky headings, 16px rounded controls with dotted borders.
+   Change a look here once; pages read these tokens.
    ========================================== */
 
 :root {
-  /* Color Palette - Refined Professional Theme */
-  --color-bg-primary: #0d0d0d;
-  --color-bg-secondary: #1a1a1a;
-  --color-bg-tertiary: #252525;
-  --color-bg-elevated: #2f2f2f;
+  /* Color palette: vault */
+  --color-bg-primary: #0f0d0b;
+  --color-bg-secondary: #1a1612;
+  --color-bg-tertiary: #231d17;
+  --color-bg-elevated: #2d251d;
 
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #b8b8b8;
-  --color-text-muted: #7a7a7a;
+  --color-text-primary: #f3ead9;
+  --color-text-secondary: #c4b8a0;
+  --color-text-muted: #9c917c;
 
-  /* Updated accent colors - more vibrant and professional */
-  --color-accent-primary: #ff4d00;
-  --color-accent-secondary: #ff6b35;
-  --color-accent-tertiary: #ffa500;
-  --color-accent-neon: #00d9ff;
+  /* Accent: brass by default. A room page overrides these through [data-room] below. */
+  --color-accent-primary: #e2a23b;
+  --color-accent-secondary: #f0b85a;
+  --color-accent-tertiary: #f5c46b;
+  --accent-rgb: 226, 162, 59;
+  --color-on-accent: #1b1204;
+  --color-stamp: #c8452d;
+  --color-focus: var(--color-text-primary);
 
   --color-success: #00d17a;
   --color-warning: #ffb800;
@@ -41,7 +46,8 @@
 
   /* Typography */
   --font-primary: 'Heebo', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-display: 'Assistant', 'Heebo', sans-serif;
+  --font-display: 'Secular One', 'Heebo', sans-serif;
+  --font-weight-display: 400; /* Secular One has one weight; asking for bold would fake it */
 
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
@@ -66,9 +72,11 @@
   /* Border Radius */
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 1rem;
-  --radius-2xl: 1.5rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.75rem;
+  --radius-control: 1rem; /* buttons, chips, slots */
+  --border-style-soft: dotted;
   --radius-full: 9999px;
 
   /* Shadows - More dramatic */
@@ -76,13 +84,18 @@
   --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.6);
   --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.7);
   --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.8);
-  --shadow-glow: 0 0 30px rgba(255, 77, 0, 0.6);
-  --shadow-glow-neon: 0 0 40px rgba(0, 217, 255, 0.5);
+  --shadow-offset: 4px 4px 0 var(--color-text-primary);
+  --shadow-offset-pressed: 2px 2px 0 var(--color-text-primary);
 
   /* Transitions */
-  --transition-fast: 150ms ease-in-out;
-  --transition-base: 250ms ease-in-out;
-  --transition-slow: 350ms ease-in-out;
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
+  --duration-slow: 350ms;
+  --duration-stamp: 450ms;
+  --transition-fast: var(--duration-fast) ease-in-out;
+  --transition-base: var(--duration-base) ease-in-out;
+  --transition-slow: var(--duration-slow) ease-in-out;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
   /* Z-index */
   --z-base: 1;
@@ -107,9 +120,16 @@
 }
 
 html {
+  accent-color: var(--color-accent-primary);
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Selected text takes the accent, so on a room page it takes the room's colour. */
+::selection {
+  background: var(--color-accent-primary);
+  color: var(--color-on-accent);
 }
 
 body {
@@ -128,34 +148,29 @@ body {
 .heading-1 {
   font-family: var(--font-display);
   font-size: var(--font-size-5xl);
-  font-weight: var(--font-weight-extrabold);
+  font-weight: var(--font-weight-display);
   line-height: var(--line-height-tight);
-  letter-spacing: -0.03em;
-  background: linear-gradient(135deg, #ffffff 0%, var(--color-accent-primary) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--color-text-primary);
 }
 
 .heading-2 {
   font-family: var(--font-display);
   font-size: var(--font-size-4xl);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-display);
   line-height: var(--line-height-tight);
-  letter-spacing: -0.02em;
 }
 
 .heading-3 {
   font-family: var(--font-display);
   font-size: var(--font-size-3xl);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-display);
   line-height: var(--line-height-tight);
 }
 
 .heading-4 {
   font-family: var(--font-display);
   font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-display);
 }
 
 .text-lg {
@@ -197,59 +212,47 @@ body {
   padding: var(--space-md) var(--space-2xl);
   font-family: var(--font-primary);
   font-size: var(--font-size-base);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-bold);
   text-decoration: none;
-  border: none;
-  border-radius: var(--radius-lg);
+  border: 2px solid transparent;
+  border-radius: var(--radius-control);
   cursor: pointer;
-  transition: all var(--transition-base);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-base);
   white-space: nowrap;
-  position: relative;
-  overflow: hidden;
 }
 
-.btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s;
-}
-
-.btn:hover::before {
-  left: 100%;
+.btn:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--color-accent-primary) 0%, var(--color-accent-tertiary) 100%);
-  color: white;
-  box-shadow: var(--shadow-md);
-  border: 2px solid transparent;
+  background: var(--color-accent-primary);
+  border-color: var(--color-accent-primary);
+  color: var(--color-on-accent);
+  box-shadow: var(--shadow-offset);
 }
 
 .btn-primary:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-glow);
+  transform: translate(2px, 2px);
+  box-shadow: var(--shadow-offset-pressed);
 }
 
 .btn-secondary {
-  background: var(--color-bg-elevated);
+  background: transparent;
   color: var(--color-text-primary);
-  border: 2px solid var(--color-accent-primary);
+  border: 2px var(--border-style-soft) var(--color-accent-primary);
 }
 
 .btn-secondary:hover {
   background: var(--color-accent-primary);
-  transform: translateY(-2px);
+  color: var(--color-on-accent);
 }
 
 .btn-ghost {
   background: transparent;
   color: var(--color-text-primary);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px var(--border-style-soft) rgba(243, 234, 217, 0.35);
 }
 
 .btn-ghost:hover {
@@ -274,7 +277,7 @@ body {
 .card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
-  border-color: rgba(255, 107, 53, 0.3);
+  border-color: rgba(var(--accent-rgb), 0.35);
 }
 
 /* ==========================================
@@ -317,6 +320,67 @@ body {
   }
 }
 
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOnly {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* The confirmation seal lands like a rubber stamp, then rests at its tilt. */
+@keyframes stampIn {
+  from {
+    opacity: 0;
+    transform: rotate(-8deg) scale(1.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: rotate(-8deg) scale(1);
+  }
+}
+
+/* Every page rises in when its route mounts. */
+.main-content>* {
+  animation: riseIn var(--duration-slow) var(--ease-out) backwards;
+}
+
+/* People who ask their system for less motion get none of the entrance or loop animations. */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 .animate-fade-in {
   animation: fadeIn 0.6s ease-out;
 }
@@ -341,4 +405,59 @@ body {
   .section {
     padding: var(--space-2xl) 0;
   }
+}
+
+
+/* ==========================================
+   ROOM THEMES
+   Put data-room="<key>" on a page or section: the accent follows the room,
+   every button, chip and border below it follows too. Without it the page is brass.
+   ========================================== */
+
+[data-room="kami"] {
+  --color-accent-primary: #e0553f;
+  --color-accent-secondary: #ea7a67;
+  --color-accent-tertiary: #f09a8a;
+  --accent-rgb: 224, 85, 63;
+  --color-on-accent: #1c0805;
+}
+
+[data-room="investigation"] {
+  --color-accent-primary: #6fb1e6;
+  --color-accent-secondary: #8fc4ee;
+  --color-accent-tertiary: #a9d3f3;
+  --accent-rgb: 111, 177, 230;
+  --color-on-accent: #051523;
+}
+
+[data-room="infinity"] {
+  --color-accent-primary: #9a8cff;
+  --color-accent-secondary: #b3a9ff;
+  --color-accent-tertiary: #c9c2ff;
+  --accent-rgb: 154, 140, 255;
+  --color-on-accent: #120c2e;
+}
+
+[data-room="narcos"] {
+  --color-accent-primary: #53c27f;
+  --color-accent-secondary: #75d199;
+  --color-accent-tertiary: #93dcb0;
+  --accent-rgb: 83, 194, 127;
+  --color-on-accent: #04190c;
+}
+
+[data-room="addicted"] {
+  --color-accent-primary: #e07ab8;
+  --color-accent-secondary: #ea98c9;
+  --color-accent-tertiary: #f1b4d8;
+  --accent-rgb: 224, 122, 184;
+  --color-on-accent: #240a1a;
+}
+
+[data-room="battleships"] {
+  --color-accent-primary: #4fc3c7;
+  --color-accent-secondary: #74d2d5;
+  --color-accent-tertiary: #97dfe1;
+  --accent-rgb: 79, 195, 199;
+  --color-on-accent: #031a1b;
 }
