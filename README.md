@@ -8,7 +8,7 @@ Website, Lighthouse on the production build (2026-11-16): performance 95, access
 
 ![Booking flow on the website: pick a room, a date and a time, then fill in the details](docs/website_demo.gif)
 
-<!-- TODO: second GIF for the JavaFX staff app (day timeline), recorded with ScreenToGif -->
+![Staff app: today's numbers, the bookings week and day timeline, the client search and the reports](docs/staff_demo.gif)
 
 ## Architecture
 
