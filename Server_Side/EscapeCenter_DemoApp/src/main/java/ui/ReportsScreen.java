@@ -2,6 +2,7 @@ package ui;
 
 import model.Booking;
 import service.ApiService;
+import javafx.application.Platform;
 import javafx.geometry.NodeOrientation;
 import javafx.scene.Node;
 import javafx.scene.control.Button;
@@ -26,9 +27,11 @@ import java.util.Optional;
  */
 public class ReportsScreen {
 
+    private static final String LOADING_MESSAGE = "טוענים את הנתונים…";
     private static final String LOAD_FAILED_MESSAGE = "לא ניתן לטעון את הנתונים. בדקו את החיבור לשרת ולחצו על רענון.";
     private static final DateTimeFormatter RANGE_DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM");
     private static final DateTimeFormatter UPDATED_AT_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final int DAYS_IN_WEEK = 7;
     private static final int PERIOD_COLUMN = 0;
     private static final int PLAYED_COLUMN = 1;
     private static final int BOOKED_COLUMN = 2;
@@ -47,7 +50,7 @@ public class ReportsScreen {
 
     public Node createPane() {
         Label title = new Label("דו\"חות משחקים");
-        title.getStyleClass().add("reports-title");
+        title.getStyleClass().add("page-title");
 
         Button refreshBtn = new Button("רענון");
         refreshBtn.getStyleClass().add("week-nav-btn");
@@ -55,6 +58,7 @@ public class ReportsScreen {
         refreshBtn.setOnAction(e -> reload());
 
         grid.getStyleClass().add("reports-grid");
+        grid.setMaxWidth(Region.USE_PREF_SIZE); // the card fits its columns instead of stretching across the window
         statusLabel.getStyleClass().add("reports-note");
         reload();
 
@@ -67,15 +71,26 @@ public class ReportsScreen {
     private void reload() {
         LocalDate today = LocalDate.now();
         // The week runs Sunday to Saturday, like the booking calendar.
-        LocalDate weekStart = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY));
-        LocalDate weekEnd = weekStart.plusDays(6);
+        LocalDate weekStart = weekStartOf(today);
+        LocalDate weekEnd = weekEndOf(today);
         LocalDate monthStart = today.withDayOfMonth(1);
         LocalDate monthEnd = today.with(TemporalAdjusters.lastDayOfMonth());
 
         // One request covers both periods: a week can start in the previous month or end in the next one.
         LocalDate from = weekStart.isBefore(monthStart) ? weekStart : monthStart;
         LocalDate to = weekEnd.isAfter(monthEnd) ? weekEnd : monthEnd;
-        Optional<Map<String, Booking>> loaded = ApiService.getInstance().loadBookings(from, to);
+        statusLabel.setText(LOADING_MESSAGE);
+        // The request runs off the screen thread, so a slow or stopped server does not freeze the window.
+        Thread loader = new Thread(() -> {
+            Optional<Map<String, Booking>> loaded = ApiService.getInstance().loadBookings(from, to);
+            Platform.runLater(() -> showCounts(loaded, weekStart, weekEnd, monthStart, monthEnd));
+        });
+        loader.setDaemon(true);
+        loader.start();
+    }
+
+    private void showCounts(Optional<Map<String, Booking>> loaded, LocalDate weekStart, LocalDate weekEnd,
+                            LocalDate monthStart, LocalDate monthEnd) {
         if (loaded.isEmpty()) {
             statusLabel.setText(LOAD_FAILED_MESSAGE);
             return;
@@ -88,6 +103,15 @@ public class ReportsScreen {
         addPeriodRow(1, "השבוע", weekStart, weekEnd, countGames(bookings, weekStart, weekEnd, now));
         addPeriodRow(4, "החודש", monthStart, monthEnd, countGames(bookings, monthStart, monthEnd, now));
         statusLabel.setText("עודכן בשעה " + now.format(UPDATED_AT_FORMAT) + ". משחק נספר כ\"שוחק\" אחרי שעת הסיום שלו.");
+    }
+
+    /** The week runs Sunday to Saturday, like the booking calendar. */
+    static LocalDate weekStartOf(LocalDate day) {
+        return day.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY));
+    }
+
+    static LocalDate weekEndOf(LocalDate day) {
+        return weekStartOf(day).plusDays(DAYS_IN_WEEK - 1);
     }
 
     /** Counts the games that start between the two dates, both included. */

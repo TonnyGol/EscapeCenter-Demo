@@ -19,6 +19,7 @@ import java.util.function.Supplier;
  * Saves a PNG of every staff screen for before-and-after pictures. Run by hand, it is not a unit test:
  * <pre>mvnw test-compile dependency:build-classpath -Dmdep.outputFile=target/cp.txt
  * java -cp "target/classes;target/test-classes;$(cat target/cp.txt)" ui.ScreenSnapshots</pre>
+ * Add the argument "min" to photograph the screens at the smallest window size (files end in "-min") instead of maximized.
  * (mvn exec:java hides this class's errors and hangs on JavaFX's thread, so it runs with plain java.)
  * Run it at most once a minute: the server limits requests per address and minute, and a second run answers 429.
  * The logged-in screens need the server running. With APP_ADMIN_USER / APP_ADMIN_PASSWORD in the environment it logs in
@@ -31,6 +32,8 @@ public final class ScreenSnapshots {
     private static final String PASSWORD_VARIABLE = "APP_ADMIN_PASSWORD";
     private static final String NAV_BUTTON_STYLE_CLASS = ".nav-button";
     private static final String DAY_CHIP_STYLE_CLASS = ".day-chip";
+    private static final String MINIMUM_SIZE_ARGUMENT = "min";
+    private static final String MINIMUM_SIZE_FILE_SUFFIX = "-min";
     private static final int BOOKINGS_NAV_INDEX = 1;
     private static final List<String> NAV_SCREEN_NAMES = List.of("dashboard", "bookings", "clients", "reports");
     private static final double OFFSCREEN_X = -5000; // the window renders fine out of sight
@@ -41,7 +44,11 @@ public final class ScreenSnapshots {
     private ScreenSnapshots() {
     }
 
+    private static String fileSuffix = "";
+
     public static void main(String[] args) throws Exception {
+        boolean atMinimumSize = args.length > 0 && MINIMUM_SIZE_ARGUMENT.equals(args[0]);
+        fileSuffix = atMinimumSize ? MINIMUM_SIZE_FILE_SUFFIX : "";
         Files.createDirectories(OUTPUT_DIR);
         Platform.startup(() -> { });
 
@@ -68,6 +75,12 @@ public final class ScreenSnapshots {
         } else {
             System.out.println("The server refused " + USER_VARIABLE + " / " + PASSWORD_VARIABLE + " or is not running.");
             System.exit(1);
+        }
+        if (atMinimumSize) {
+            onFxThread(() -> {
+                stage.setMaximized(false); // the shell opens maximized; un-maximizing falls back to its minimum size
+                return null;
+            });
         }
         for (int index = 0; index < NAV_SCREEN_NAMES.size(); index++) {
             int navIndex = index;
@@ -122,8 +135,8 @@ public final class ScreenSnapshots {
                 image.setRGB(x, y, pixels.getArgb(x, y));
             }
         }
-        ImageIO.write(image, "png", OUTPUT_DIR.resolve(name + ".png").toFile());
-        System.out.println("Saved " + name + ".png (" + width + "x" + height + ")");
+        ImageIO.write(image, "png", OUTPUT_DIR.resolve(name + fileSuffix + ".png").toFile());
+        System.out.println("Saved " + name + fileSuffix + ".png (" + width + "x" + height + ")");
     }
 
     private static <T> T onFxThread(Supplier<T> work) throws Exception {

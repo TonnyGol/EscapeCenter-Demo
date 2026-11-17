@@ -31,7 +31,6 @@ public class NavigationShell {
     private Button activeButton;
 
     // Screen panes (lazy-initialized)
-    private Node dashboardPane;
     private Node bookingPane;
     private Node clientsPane;
 
@@ -99,8 +98,8 @@ public class NavigationShell {
         // ---- Button Actions ----
         dashBtn.setOnAction(e -> {
             setActiveButton(dashBtn);
-            if (dashboardPane == null) dashboardPane = new DashboardScreen().createPane(this);
-            switchContent(dashboardPane);
+            // A fresh pane each time, so today's numbers are never from an earlier visit.
+            switchContent(new DashboardScreen().createPane(this));
         });
 
         bookingBtn.setOnAction(e -> {

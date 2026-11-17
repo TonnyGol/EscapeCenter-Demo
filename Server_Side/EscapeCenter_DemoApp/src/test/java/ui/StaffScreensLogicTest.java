@@ -24,6 +24,30 @@ class StaffScreensLogicTest {
     }
 
     @Test
+    void theWeekRunsSundayToSaturday_forEveryDayOfIt() {
+        LocalDate sunday = LocalDate.parse("2026-11-15");
+        LocalDate saturday = LocalDate.parse("2026-11-21");
+
+        for (LocalDate day = sunday; !day.isAfter(saturday); day = day.plusDays(1)) {
+            assertEquals(sunday, ReportsScreen.weekStartOf(day));
+            assertEquals(saturday, ReportsScreen.weekEndOf(day));
+        }
+        assertEquals(LocalDate.parse("2026-11-22"), ReportsScreen.weekStartOf(LocalDate.parse("2026-11-22")));
+    }
+
+    @Test
+    void nextGameToday_isTheSoonestGameAfterNow_onTheSameDay_andEmptyWhenNoneIsLeft() {
+        LocalDateTime now = LocalDateTime.parse("2026-11-17T18:30");
+        Booking running = game("Room 1", "2026-11-17T18:00", "2026-11-17T19:00");
+        Booking later = game("Room 2", "2026-11-17T21:00", "2026-11-17T22:00");
+        Booking soonest = game("Room 3", "2026-11-17T19:15", "2026-11-17T20:15");
+        Booking tomorrow = game("Room 4", "2026-11-18T10:00", "2026-11-18T11:00");
+
+        assertEquals("Room 3", DashboardScreen.nextGameToday(List.of(running, later, soonest, tomorrow), now).orElseThrow().roomName());
+        assertTrue(DashboardScreen.nextGameToday(List.of(running, tomorrow), now).isEmpty());
+    }
+
+    @Test
     void statusLine_marksArrivedAndNoShow_andStaysEmptyForConfirmed() {
         assertEquals("", BookingManagementScreen.statusLine(BookingStatus.CONFIRMED));
         assertEquals("\n✓ הגיעו", BookingManagementScreen.statusLine(BookingStatus.COMPLETED));

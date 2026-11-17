@@ -227,22 +227,6 @@ public class BookingManagementScreen {
         return pane;
     }
 
-    /** Legacy method — still supports standalone stage. */
-    public void show(Stage stage) {
-        stage.setTitle("ניהול הזמנות");
-        Node content = createPane(stage);
-
-        ScrollPane scroll = new ScrollPane(content);
-        scroll.setFitToWidth(true);
-        scroll.setFitToHeight(true);
-
-        Scene scene = new Scene(scroll, 1200, 700);
-        scene.getStylesheets().add(
-                getClass().getClassLoader().getResource("styles.css").toExternalForm());
-        stage.setScene(scene);
-        stage.show();
-    }
-
     /**
      * Stops the polling timer. Call this when the screen is destroyed.
      */

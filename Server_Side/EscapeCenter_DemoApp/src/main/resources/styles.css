@@ -28,6 +28,7 @@
     -ec-warn-tint-strong: rgba(217, 119, 6, 0.22);
     -ec-danger: #b42318;
     -ec-success: #1f7a4d;
+    /* Corner scale, written out because JavaFX CSS cannot look numbers up (only colors): cards 12, controls 8, pills 20. */
     -ec-danger-tint: rgba(180, 35, 24, 0.10);
 
     -fx-base: -ec-paper;
@@ -244,7 +245,7 @@
     -fx-padding: 8;
 }
 
-.dashboard-welcome {
+.page-title {
     -fx-font-size: 24px;
     -fx-font-weight: bold;
     -fx-text-fill: -ec-ink;
@@ -255,6 +256,32 @@
     -fx-text-fill: -ec-ink-soft;
 }
 
+.dashboard-section-title {
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -ec-ink-soft;
+}
+
+.dashboard-stat {
+    -fx-background-color: -ec-surface;
+    -fx-background-radius: 12;
+    -fx-border-color: -ec-line;
+    -fx-border-radius: 12;
+    -fx-padding: 16 24;
+    -fx-pref-width: 260;
+}
+
+.dashboard-stat-number {
+    -fx-font-size: 34px;
+    -fx-font-weight: bold;
+    -fx-text-fill: -ec-accent-strong;
+}
+
+.dashboard-stat-caption {
+    -fx-font-size: 13px;
+    -fx-text-fill: -ec-ink-soft;
+}
+
 .dashboard-grid {
     -fx-hgap: 16;
     -fx-vgap: 16;
@@ -262,9 +289,9 @@
 
 .dashboard-card {
     -fx-background-color: -ec-surface;
-    -fx-background-radius: 14;
+    -fx-background-radius: 12;
     -fx-border-color: -ec-line;
-    -fx-border-radius: 14;
+    -fx-border-radius: 12;
     -fx-padding: 24;
     -fx-spacing: 10;
     -fx-pref-width: 260;
@@ -809,12 +836,6 @@
     -fx-padding: 8;
 }
 
-.reports-title {
-    -fx-font-size: 22px;
-    -fx-font-weight: bold;
-    -fx-text-fill: -ec-ink;
-}
-
 .reports-grid {
     -fx-hgap: 0;
     -fx-vgap: 0;
@@ -822,7 +843,6 @@
     -fx-background-radius: 12;
     -fx-border-color: -ec-line;
     -fx-border-radius: 12;
-    -fx-max-width: 720;
 }
 
 .reports-head {

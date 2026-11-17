@@ -36,6 +36,8 @@ public class ClientsManagementScreen {
     private Button rightBtn;
 
     private static final int CLIENTS_PER_PAGE = 10;
+    private static final String TITLE = "ניהול לקוחות";
+    private static final String LOADING_MESSAGE = "טוענים את הלקוחות…";
     private static final String NO_CLIENTS_MESSAGE = "לא נמצאו לקוחות. נסו שם או מספר טלפון אחר.";
     private static final String NO_EMAIL_LABEL = "אין אימייל";
     private static final double NAME_ICON_SIZE = 16;
@@ -55,14 +57,14 @@ public class ClientsManagementScreen {
     private static final double HISTORY_WIDTH = 760;
     private static final double HISTORY_HEIGHT = 380;
     private int currentPage = 0;
+    private boolean isLoading = true;
 
     /**
      * Creates the clients pane for embedding inside NavigationShell.
      */
     public Node createPane() {
-        // Load data from server
-        clientMap = new HashMap<>(ApiService.getInstance().loadClients());
-        clients = new ArrayList<>(clientMap.values());
+        clientMap = new HashMap<>();
+        clients = new ArrayList<>();
 
         // ---- Search bar ----
         searchField = new TextField();
@@ -148,8 +150,12 @@ public class ClientsManagementScreen {
         navigation.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
         showClientsPage();
+        loadClientsInBackground();
 
-        VBox pane = new VBox(12, searchBar, scrollPane, navigation);
+        Label title = new Label(TITLE);
+        title.getStyleClass().add("page-title");
+
+        VBox pane = new VBox(12, title, searchBar, scrollPane, navigation);
         pane.getStyleClass().add("clients-pane");
         pane.setNodeOrientation(NodeOrientation.RIGHT_TO_LEFT);
 
@@ -159,16 +165,18 @@ public class ClientsManagementScreen {
         return pane;
     }
 
-    /** Legacy standalone stage method. */
-    public void show(Stage stage) {
-        stage.setTitle("ניהול לקוחות");
-        Node content = createPane();
-
-        Scene scene = new Scene(new StackPane(content), 600, 600);
-        scene.getStylesheets().add(
-                getClass().getClassLoader().getResource("styles.css").toExternalForm());
-        stage.setScene(scene);
-        stage.show();
+    /** The request runs off the screen thread, so a slow or stopped server does not freeze the window. */
+    private void loadClientsInBackground() {
+        Thread loader = new Thread(() -> {
+            Map<String, Client> loaded = ApiService.getInstance().loadClients();
+            javafx.application.Platform.runLater(() -> {
+                clientMap = new HashMap<>(loaded);
+                isLoading = false;
+                filterClients();
+            });
+        });
+        loader.setDaemon(true);
+        loader.start();
     }
 
     private void filterClients() {
@@ -191,7 +199,7 @@ public class ClientsManagementScreen {
         countLabel.setText("סה\"כ: " + clients.size() + " לקוחות");
 
         if (clients.isEmpty()) {
-            Label empty = new Label(NO_CLIENTS_MESSAGE);
+            Label empty = new Label(isLoading ? LOADING_MESSAGE : NO_CLIENTS_MESSAGE);
             empty.getStyleClass().add("client-count");
             empty.setStyle("-fx-font-size: 16px; -fx-padding: 40;");
             cardDisplay.getChildren().add(empty);
