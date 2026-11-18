@@ -14,7 +14,7 @@
   "dependencies": {
     "@fontsource/heebo": "^5.3.0",
     "@fontsource/secular-one": "^5.3.0",
-    "axios": "^1.21.0",
+    "axios": "^1.21.1",
     "framer-motion": "^12.43.0",
     "lucide-react": "^0.577.0",
     "react": "^19.3.1",
@@ -27,17 +27,17 @@
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
-    "@testing-library/user-event": "^14.6.8",
+    "@testing-library/user-event": "^14.6.10",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^4.7.0",
     "eslint": "^9.22.0",
     "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.5.7",
+    "eslint-plugin-react-refresh": "^0.5.8",
     "globals": "^16.5.0",
-    "jsdom": "^31.0.0",
+    "jsdom": "^31.0.1",
     "playwright": "^1.65.1",
-    "vite": "^6.4.5",
+    "vite": "^6.4.6",
     "vitest": "^3.2.7"
   }
 }
