@@ -47,6 +47,12 @@ Delivery is at-least-once, so the same event can arrive twice. The notification 
 
 In dev, every email lands in Mailpit at http://localhost:8025 and nothing leaves your machine.
 
+## Design decisions
+
+- **The database prevents double booking, not the code.** The service checks for a taken slot first so the customer gets a clear 409, but two requests can pass that check at the same moment. A unique constraint on `(room_id, start_at)` is the real guard: the second insert fails and the API turns that one constraint into the same 409. No application lock is needed, and it works with any number of server instances.
+- **Booking and email are made reliable by the outbox, not by hoping.** See [Booking emails](#booking-emails): the event is saved in the same transaction as the booking, so a crash can never leave one without the other.
+- **Email is a separate service behind RabbitMQ.** A broker or mail outage never blocks a booking, and the notification service can be restarted or scaled without touching the API.
+
 ## Features
 
 - Customers pick a room and a time slot on a weekly calendar and book it (Hebrew, RTL interface).
@@ -100,9 +106,3 @@ One-command start (`docker compose up` for the whole stack) arrives with the CI/
 | GET | `/api/staff/check` | staff | Check the staff login |
 
 Errors come back as [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807) `ProblemDetail` JSON.
-
-Swagger UI is planned (see roadmap).
-
-## Roadmap
-
-Next: input validation, a cleaner data layer and tests, then CI/CD, an event-driven email service and a live demo.
