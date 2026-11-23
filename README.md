@@ -71,16 +71,16 @@ In dev, every email lands in Mailpit at http://localhost:8025 and nothing leaves
 | Staff app | JavaFX 21 |
 | Security | Spring Security (HTTP Basic) |
 
-## Quick start
+## Develop it
 
-Needs Docker, Java 21, Maven and Node.js.
+Just want to run it? See [Try it on your computer](#try-it-on-your-computer-live-demo). To work on the code you need Docker, Java 21, Maven and Node.js.
 
 ```bash
-cp .env.example .env          # then fill in the passwords
-docker compose up -d          # MySQL; the API creates the schema (Flyway) when it starts
+cp .env.example .env                              # then fill in the passwords
+docker compose up -d mysql rabbitmq mailpit       # only the services; you run the API and the site from source below
 ```
 
-Export `MYSQL_USER`, `MYSQL_PASSWORD`, `APP_ADMIN_USER` and `APP_ADMIN_PASSWORD` in your shell (values are explained in `.env.example`), then:
+Export `MYSQL_USER`, `MYSQL_PASSWORD`, `APP_ADMIN_USER` and `APP_ADMIN_PASSWORD` in your shell (values are explained in `.env.example`), then the API creates the schema (Flyway) when it starts:
 
 ```bash
 cd Server_Side/EscapeCenter_Server && mvn spring-boot:run    # API on :8080
@@ -90,7 +90,50 @@ cd Server_Side/EscapeCenter_DemoApp && mvn javafx:run         # staff app (optio
 
 `mvn verify` starts its own throwaway MySQL with Testcontainers, so it only needs Docker running (no database or environment variables).
 
-One-command start (`docker compose up` for the whole stack) arrives with the CI/CD phase.
+## Try it on your computer (live demo)
+
+You run the whole system on your own computer: the server and website in Docker, and the staff app as a Windows program. Nothing is installed besides Docker, and nothing leaves your machine (emails go to a fake inbox). It takes about 10 minutes, most of it the first download.
+
+### What you need
+- **Windows 10 or 11.**
+- **Docker Desktop**, installed and running (free: https://www.docker.com/products/docker-desktop).
+
+### 1. Download
+- **The project:** on this page click **Code → Download ZIP**, then unzip it. (Or `git clone https://github.com/TonnyGol/EscapeCenter-Demo.git`.)
+- **The staff app:** open the [Releases](https://github.com/TonnyGol/EscapeCenter-Demo/releases) page, download `EscapeCenter-Staff-Windows.zip` and unzip it anywhere.
+
+### 2. Start the server and website
+Open PowerShell in the project folder (in File Explorer: open the folder, click the address bar, type `powershell`, press Enter) and run:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-demo.ps1
+```
+
+The first run builds everything and takes a few minutes. When it prints the addresses, the system is ready. (`-ExecutionPolicy Bypass` only lets Windows run this one script; it changes no setting.)
+
+### 3. Look around
+1. **Book a room as a customer:** open http://localhost, choose a room and book a time. Pick today if you want to see it appear on the staff dashboard.
+2. **Read the confirmation email:** open http://localhost:8025. This is a fake inbox that catches every email the system sends, so you can see the booking confirmation without a real mail server.
+3. **Open the staff app:** run `EscapeCenter.exe` from the unzipped folder and log in with the staff login the start script printed at the end (user `admin`, and a random password that is also in the `.env` file). Windows may show a blue "unknown publisher" warning because the app is not signed: click **More info → Run anyway**. Look at the dashboard, bookings, clients and reports, and find the booking you just made.
+4. **Work like the staff would:** change your booking, mark a game as arrived or no-show, add a booking for a phone customer, and watch the dashboard update. Refresh the website to see the time slot is taken.
+5. **Try it on a phone:** with the phone on the same Wi-Fi as the computer, open the `Phone:` address the start script printed (like `http://192.168.1.20`). Only the website is shared on the network; the API, the database and the fake inbox stay on this computer. Type it with `http://` (not `https://`). If the page does not open, Windows Firewall is probably blocking it: it often allows Docker only on "public" networks, while a home Wi-Fi is "private". Allow port 80 on private networks once, in PowerShell opened as administrator:
+
+```powershell
+New-NetFirewallRule -DisplayName "EscapeCenter demo website (port 80)" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow -Profile Private
+```
+
+To undo it later: `Remove-NetFirewallRule -DisplayName "EscapeCenter demo website (port 80)"`. If it still does not open, check that the Wi-Fi is not a guest network with "client isolation".
+
+### Stop it
+```powershell
+docker compose down
+```
+Run it from the project folder. Start again later with the same command as in step 2, which is much faster the second time. If the staff app says the username or password is wrong, first check that Docker Desktop is running and the system is started.
+
+### Good to know
+- The first start creates a `.env` file next to the script, with random passwords for the database, the message broker and the `admin` staff login. It stays on your computer and is never uploaded. The demo is meant for your own machine and your home network: do not expose its ports to the internet (no port forwarding on your router).
+- Want to build the staff app yourself? With JDK 21 or newer, run `.\build-exe.ps1` in `Server_Side/EscapeCenter_DemoApp`. It makes `dist/EscapeCenter-Staff-Windows.zip`.
+- A public version on a server with HTTPS is planned for when this becomes a real product. The files are ready (`docker-compose.prod.yml` and `Caddyfile`).
 
 ## API
 

@@ -71,6 +71,37 @@ jobs:
       - run: npm run build
       - run: npm test -- --run
 
+  # Starts the whole stack on an empty database, the way a first-time visitor does.
+  stack-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create .env with random passwords
+        run: |
+          {
+            echo "MYSQL_ROOT_PASSWORD=$(openssl rand -hex 12)"
+            echo "MYSQL_DATABASE=escapecenter"
+            echo "MYSQL_USER=escape"
+            echo "MYSQL_PASSWORD=$(openssl rand -hex 12)"
+            echo "APP_ADMIN_USER=admin"
+            echo "APP_ADMIN_PASSWORD=$(openssl rand -hex 12)"
+            echo "RABBITMQ_USER=escape"
+            echo "RABBITMQ_PASSWORD=$(openssl rand -hex 12)"
+          } > .env
+      - name: Start the stack
+        run: docker compose up -d --build --wait --wait-timeout 300
+      - name: Check the API and the site
+        run: |
+          curl --fail --silent http://localhost:8080/actuator/health
+          curl --fail --silent http://localhost:8080/api/rooms > /dev/null
+          curl --fail --silent http://localhost/ > /dev/null
+      - name: Show logs when it failed
+        if: failure()
+        run: docker compose logs
+      - name: Stop the stack
+        if: always()
+        run: docker compose down -v
+
   docker:
     needs: [backend, notification-service, staff-app, frontend]
     runs-on: ubuntu-latest
