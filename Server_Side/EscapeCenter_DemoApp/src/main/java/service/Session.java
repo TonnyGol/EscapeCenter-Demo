@@ -89,7 +89,8 @@ public final class Session {
      * Returns the server base URL (e.g. "http://localhost:8080").
      */
     public String getServerUrl() {
-        return config.getProperty("server.url", "http://localhost:8080");
+        // The packaged .exe sets -Dserver.url, so one build can point at any server without editing files.
+        return System.getProperty("server.url", config.getProperty("server.url", "http://localhost:8080"));
     }
 
     /** How long one request may wait for the server's answer. */

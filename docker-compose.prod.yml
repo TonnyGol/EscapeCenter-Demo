@@ -1,0 +1,44 @@
+# Live demo: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# Only Caddy is reachable from the internet (80 and 443); every other port is closed.
+# Needs Docker Compose 2.24 or newer (for "!reset"); check with: docker compose version
+services:
+  mysql:
+    ports: !reset []
+    restart: unless-stopped
+  rabbitmq:
+    ports: !reset []
+    restart: unless-stopped
+  mailpit:
+    # Demo emails are caught here, nothing real is sent. Reach it with an SSH tunnel to the VM.
+    ports: !reset []
+    restart: unless-stopped
+  api:
+    ports: !reset []
+    restart: unless-stopped
+    environment:
+      # Behind Caddy every request comes from Caddy's address; this makes the rate limit use the visitor's own address
+      # from X-Forwarded-For. Safe only here: Caddy overwrites that header from outside and the API port is closed.
+      # Never set it in the local demo: Tomcat trusts private addresses, so anyone could rotate fake ones past the limit.
+      SERVER_FORWARD_HEADERS_STRATEGY: native
+  notification-service:
+    restart: unless-stopped
+  web:
+    ports: !reset []
+    restart: unless-stopped
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - web
+      - api
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+
+volumes:
+  caddy_data:

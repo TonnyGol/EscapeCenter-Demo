@@ -64,11 +64,16 @@ services:
       APP_ADMIN_USER: ${APP_ADMIN_USER:?set APP_ADMIN_USER in .env}
       APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:?set APP_ADMIN_PASSWORD in .env}
     ports:
-      - "8080:8080"
+      # Local only: the staff app on this computer uses it. The website reaches the API through its own nginx on port 80.
+      - "127.0.0.1:8080:8080"
 
   notification-service:
     build: ./Server_Side/notification-service
     depends_on:
+      # On an empty database the API's Flyway must create the schema first: it refuses a schema
+      # that already holds this service's processed_events table but has no migration history.
+      api:
+        condition: service_healthy
       mysql:
         condition: service_healthy
       rabbitmq:
@@ -90,6 +95,7 @@ services:
     depends_on:
       - api
     ports:
+      # Open to the local network on purpose, so a phone on the same Wi-Fi can open the website.
       - "80:80"
 
 volumes:

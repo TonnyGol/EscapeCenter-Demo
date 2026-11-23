@@ -63,6 +63,26 @@
                 </configuration>
             </plugin>
 
+            <!-- Copies the dependency jars to target/libs for build-exe.ps1 (jpackage). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.8.1</version>
+                <executions>
+                    <execution>
+                        <id>copy-libs</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/libs</outputDirectory>
+                            <includeScope>runtime</includeScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
             <!-- Run with: mvn exec:java -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
